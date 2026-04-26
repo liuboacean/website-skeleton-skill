@@ -38,6 +38,130 @@ export async function verifyAccessToken(token) {
 }
 ```
 
+### 【Phase 3 新增】RS256 双轨迁移
+
+> **版本：** Phase 3 P2-1
+> **密钥生成：**
+> ```bash
+> openssl genrsa -out private.pem 2048
+> openssl rsa -in private.pem -pubout -out public.pem
+> ```
+> **环境变量：**
+> - `JWT_PRIVATE_KEY` — RSA 私钥（PEM，换行符用 `\n` 转义）
+> - `JWT_PUBLIC_KEY`  — RSA 公钥（PEM，换行符用 `\n` 转义）
+> - `JWT_SECRET`      — HS256 密钥（30 天兼容窗口后删除）
+
+```javascript
+// sharing/jwt-helper.js — RS256 实现（完整源码）
+
+// ===================== PEM 解析 =====================
+function parsePem(pem) {
+  const lines = pem.replace(/\\n/g, '\n').split('\n');
+  const base64 = lines.filter(l => !l.startsWith('-----')).join('');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function base64UrlEncode(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlDecode(str) {
+  let s = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const binary = atob(s);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+// ===================== RS256 签发 =====================
+export async function signJWT(payload, expiresInMs, env) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const body = { ...payload, iat: now, exp: now + Math.floor(expiresInMs / 1000) };
+
+  const headerEncoded = base64UrlEncode(new TextEncoder().encode(JSON.stringify(header)));
+  const bodyEncoded = base64UrlEncode(new TextEncoder().encode(JSON.stringify(body)));
+  const signingInput = `${headerEncoded}.${bodyEncoded}`;
+
+  const keyData = parsePem(env.JWT_PRIVATE_KEY);
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8', keyData, { name: 'RSA-PSS', hash: 'SHA-256' }, false, ['sign']
+  );
+  const signature = await crypto.subtle.sign(
+    { name: 'RSA-PSS', saltLength: 32 }, privateKey,
+    new TextEncoder().encode(signingInput)
+  );
+
+  return `${signingInput}.${base64UrlEncode(signature)}`;
+}
+
+// ===================== 双轨验证 =====================
+export async function verifyJWT(token, env) {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [headerEnc, bodyEnc, sigEnc] = parts;
+
+  const header = JSON.parse(new TextDecoder().decode(base64UrlDecode(headerEnc)));
+  const body = JSON.parse(new TextDecoder().decode(base64UrlDecode(bodyEnc)));
+  const now = Math.floor(Date.now() / 1000);
+
+  // RS256 优先验证
+  if (header.alg === 'RS256' && env.JWT_PUBLIC_KEY) {
+    try {
+      const keyData = parsePem(env.JWT_PUBLIC_KEY);
+      const pubKey = await crypto.subtle.importKey(
+        'spki', keyData, { name: 'RSA-PSS', hash: 'SHA-256' }, false, ['verify']
+      );
+      const valid = await crypto.subtle.verify(
+        { name: 'RSA-PSS', saltLength: 32 }, pubKey,
+        base64UrlDecode(sigEnc), new TextEncoder().encode(`${headerEnc}.${bodyEnc}`)
+      );
+      if (valid && body.exp > now) return { ...body, _alg: 'RS256' };
+    } catch {}
+  }
+
+  // HS256 兼容（30 天窗口内）
+  if (header.alg === 'HS256' && env.JWT_SECRET) {
+    try {
+      const secretKey = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(env.JWT_SECRET),
+        { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
+      );
+      const valid = await crypto.subtle.verify(
+        'HMAC', secretKey, base64UrlDecode(sigEnc),
+        new TextEncoder().encode(`${headerEnc}.${bodyEnc}`)
+      );
+      if (valid && body.exp > now) {
+        // 仅接受 30 天内签发的旧 token
+        const compatDeadline = Date.now() - 30 * 24 * 3600 * 1000;
+        if (body.iat * 1000 > compatDeadline) {
+          return { ...body, _alg: 'HS256' };
+        }
+      }
+    } catch {}
+  }
+
+  return null;
+}
+```
+
+### RS256 迁移时间线
+
+```
+Day 0:      部署 RS256 签发 + 双轨验证（JWT_PRIVATE_KEY/JWT_PUBLIC_KEY 注入）
+Day 1-30:   HS256 旧 token 仍可验证（向后兼容，日志记录 _alg: 'HS256'）
+Day 30:     移除 HS256 兼容分支（仅 RS256）
+Day 30:     删除 JWT_SECRET 环境变量
+```
+```
+
 ## 三、KV Session 存储
 
 ```javascript

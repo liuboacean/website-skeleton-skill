@@ -27,6 +27,8 @@
     }
   },
   "envVars": [
+    "JWT_PRIVATE_KEY",
+    "JWT_PUBLIC_KEY",
     "JWT_SECRET",
     "AI_API_KEY",
     "EDGE_BASE"
@@ -50,7 +52,8 @@
   "embedCode": "<script src=\"https://your-site.edgeone.cool/ai-widget.js\"></script>\n<ai-chat-widget site-id=\"YOUR_SITE_ID\" theme=\"auto\" position=\"bottom-right\"></ai-chat-widget>",
   "securityChecks": [
     "bcrypt cost=12",
-    "JWT 15min + RT 7d",
+    "JWT RS256 + 30天 HS256 兼容窗口",
+    "JWT 15min AT + RT 7d 轮换",
     "AI 限流（未登录 10次/分钟，已登录 60次/分钟）",
     "CSP Header"
   ]

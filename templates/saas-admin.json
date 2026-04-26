@@ -27,6 +27,8 @@
     }
   },
   "envVars": [
+    "JWT_PRIVATE_KEY",
+    "JWT_PUBLIC_KEY",
     "JWT_SECRET",
     "DATABASE_URL",
     "EDGE_BASE"
@@ -54,10 +56,12 @@
   },
   "securityChecks": [
     "bcrypt cost=12",
-    "JWT 15min + RT 7d",
+    "JWT RS256 + 30天 HS256 兼容窗口",
+    "JWT 15min AT + RT 7d 轮换",
     "Cookie HttpOnly + Secure + SameSite=Strict",
     "RBAC 中间件校验",
     "审计日志写入",
-    "CSP Header"
+    "CSP Header",
+    "多租户 KV key 隔离"
   ]
 }

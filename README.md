@@ -2,7 +2,7 @@
 
 > **提交单位：** 刘博
 > **提交日期：** 2026-04-26
-> **Skill 版本：** v2.2 · Phase 2 详细设计完成
+> **Skill 版本：** v2.2 · Phase 3 实现完成
 > **Demo 部署地址：** https://geek-mall-demo-4qaxvmeh.edgeone.cool（需有效期内的 EdgeOne Pages 访问 Token）
 
 ---
@@ -41,10 +41,16 @@ website-skeleton-skill/
 │   ├── ai-assistant.json       ✅ AI 助手场景模板
 │   └── saas-admin.json         ✅ SaaS 管理后台场景模板
 ├── references/
-│   ├── auth-module.md          ✅ Auth 模块实现参考
+│   ├── auth-module.md          ✅ JWT RS256 + HS256 兼容 + KV Session
 │   ├── payment-module.md       ✅ Payment 模块实现参考
 │   ├── ai-chat-module.md       ✅ AI Chat 模块实现参考
-│   └── kv-storage.md           ✅ KV 存储策略参考
+│   ├── admin-module.md         ✅ RBAC + CRUD + 运营统计 + 审计日志
+│   ├── order-state-machine.md   ✅ 6状态 + 权限矩阵 + 库存联动 + Cron
+│   ├── edge-functions.md       ✅ Edge Middleware + KV API + 限流
+│   ├── cloud-functions.md      ✅ MySQL 事务 + bcrypt + 支付 SDK + SSE
+│   ├── middleware.md           ✅ Platform + Edge 双层 + CSP + bypass
+│   ├── kv-storage.md           ✅ KV 存储策略参考
+│   └── deployment.md           ✅ 完整部署流程 + Cron + 回滚
 └── README.md                   ✅ 本文件
 ```
 
@@ -166,9 +172,10 @@ edgeone pages deploy -n my-site
 ## 八、未来演进路线
 
 ```
-Phase 1（当前）：单租户，mock 数据 Demo 验证
-Phase 2：MySQL 接入，真实支付，数据持久化
-Phase 3：多租户 SaaS，KV key 租户前缀
+Phase 1（完成）：Mock 数据 Demo 验证
+Phase 2（完成）：P0/P1 安全设计 + P2 设计文档
+Phase 3（完成）：P2 实现 + Layer 2 Addon + 多租户铺垫
+Phase 4（规划中）：多租户 SaaS + npm 包化
 ```
 
 **npm 包化（长期）：**

@@ -1,6 +1,6 @@
 # 建站 Skill — EdgeOne Pages 全栈网站骨架
 
-> **版本：** 2.2 · **日期：** 2026-04-26 · **Phase 2 详细设计完成**
+> **版本：** 2.2 · **日期：** 2026-04-26 · **Phase 3 实现完成**
 > **一句话描述：** 用户说一句话，AI 生成完整前后端网站，自动部署到 EdgeOne Pages。
 
 ---
@@ -143,18 +143,18 @@ website-skeleton/
 │       └── notification-hooks.js  # 通知钩子空壳
 │
 ├── references/                  # 能力参考文档
-│   ├── auth-module.md
+│   ├── auth-module.md           # ✅ JWT RS256 + HS256 兼容 + KV Session
 │   ├── cart-module.md
 │   ├── payment-module.md
 │   ├── ai-chat-module.md
-│   ├── admin-module.md
+│   ├── admin-module.md          # ✅ RBAC + CRUD + 运营统计 + 审计日志
 │   ├── notification-module.md   # Layer 2：邮件/微信/钉钉通知
-│   ├── order-state-machine.md   # Phase 2：订单状态机 + 权限矩阵
-│   ├── edge-functions.md
-│   ├── cloud-functions.md
+│   ├── order-state-machine.md   # ✅ 6状态 + 权限矩阵 + 库存联动 + 审计日志
+│   ├── edge-functions.md        # ✅ Edge Middleware + KV API + 限流
+│   ├── cloud-functions.md       # ✅ MySQL 事务 + bcrypt + 支付 SDK + SSE
 │   ├── kv-storage.md
-│   ├── middleware.md
-│   └── deployment.md
+│   ├── middleware.md            # ✅ Platform + Edge 双层 + CSP + 支付 bypass
+│   └── deployment.md            # ✅ 完整部署流程 + Cron + 回滚
 │
 └── scripts/
     ├── init-site.js             # 交互式初始化（模板优先）
@@ -520,10 +520,10 @@ Step 6: 生成代码 → edgeone deploy → 返回访问 URL
 - [x] EventBus 401 自动跳转登录（含 redirect 回跳逻辑）
 - [x] Notification 钩子（Phase 2 完整适配器设计 + 事件注册机制）
 
-### 🟢 P2（可选）
+### 🟢 P2（Phase 3 实现）
 
-- [ ] RS256 迁移（双轨并行 HS256/RS256，30 天兼容窗口）
-- [ ] 订单状态机（Pending→Paid→Shipped→Completed，version 校验 + 权限分级）
+- [x] RS256 迁移（双轨并行 HS256/RS256，30 天兼容窗口）
+- [x] 订单状态机（6状态 + 权限矩阵 + version 校验 + 库存联动 + 审计日志 + 定时 Cron）
 
 ---
 
@@ -1140,3 +1140,185 @@ export async function onRequest(request, env) {
 ```
 
 > **Phase 2 完成后，网站骨架 Skill 具备生产级安全性与完整功能集。**
+
+---
+
+## 十八、Phase 3 实现（P2 编码 + Layer 2 Addon + 多租户铺垫）
+
+### Phase 3 里程碑
+
+```
+✅ Phase 1 完成：Mock 数据 Demo，架构验证
+✅ Phase 2 完成：P0/P1 安全设计 + P2 设计文档完整
+✅ Phase 3 完成：P2 实现 + Layer 2 Addon + 多租户铺垫
+```
+
+### P2-1：RS256 双轨迁移（sharing/jwt-helper.js）
+
+**实现文件：** `sharing/jwt-helper.js`
+
+- 签发：RS256 私钥（`JWT_PRIVATE_KEY` 环境变量）
+- 验证：优先 RS256，30 天内旧 HS256 token 仍可验证
+- 迁移时间线：Day 0 部署 → Day 30 移除 HS256 兼容分支
+
+```javascript
+// 签发（永远 RS256）
+const token = await signJWT({ sub: user.id, role: 'admin' }, AT_TTL_MS, env);
+
+// 验证（自动双轨）
+const payload = await verifyJWT(token, env);
+// payload._alg === 'RS256' → 新 token
+// payload._alg === 'HS256' → 30天兼容窗口内的旧 token
+```
+
+### P2-2：订单状态机（cloud-functions/）
+
+**实现文件：**
+- `cloud-functions/utils/order-state-machine.js` — 核心状态机 + TRANSITIONS 表 + PERMISSIONS 表
+- `cloud-functions/api/order/transition.js` — 统一状态变更 API
+- `cloud-functions/cron/order-cron.js` — 定时任务（PENDING 超时取消 / SHIPPED 自动完成）
+- `db/migrations/002_order_logs.sql` — `order_status_logs` 审计表
+
+**状态流转（6 状态）：**
+```
+PENDING → PAID → SHIPPED → COMPLETED
+    ↓        ↓        ↓
+CANCELLED  REFUNDED  REFUNDED
+```
+
+**权限矩阵：**
+| 变更 | 用户（本人） | 管理员 |
+|------|------------|--------|
+| PENDING→CANCELLED | ✅ | ✅ |
+| PAID→SHIPPED | — | ✅ |
+| PAID/SHIPPED→REFUNDED | ✅（本人） | ✅ |
+| SHIPPED→COMPLETED | ✅ | ✅ |
+
+### L2-1：SEO 模块（client/src/utils/seo.js + edge-functions/）
+
+**实现文件：**
+- `client/src/utils/seo.js` — JSON-LD 生成器 + Meta Tags + Sitemap XML 生成器
+- `edge-functions/api/sitemap.xml.js` — 动态 Sitemap API（Edge Function，5 分钟缓存）
+- `sharing/i18n/zh-CN.js` + `en-US.js` — 中英文案
+
+**JSON-LD 支持：**
+- `WebSite`（首页）
+- `Product`（产品页，含 offers/aggregateRating）
+- `BreadcrumbList`（面包屑）
+- `Organization`（组织信息）
+
+### L2-2：i18n 国际化（sharing/i18n/）
+
+**实现文件：**
+- `sharing/i18n/zh-CN.js` — 中文文案
+- `sharing/i18n/en-US.js` — 英文文案
+- `sharing/i18n/i18n.js` — 翻译函数 `t(key)` + 语言切换
+
+**使用方式：**
+```javascript
+import { t, setLang, getLang } from './i18n.js';
+
+t('nav.home')           // → '首页'
+t('order.status.PAID')  // → '已支付'
+setLang('en-US');       // 切换语言
+```
+
+### L2-3：Analytics 埋点（client/src/utils/analytics.js）
+
+**实现文件：**
+- `client/src/utils/analytics.js` — 埋点 SDK
+- `edge-functions/api/analytics/event.js` — 事件接收 API（KV 存储）
+
+**预定义事件：** `page_view` / `add_to_cart` / `checkout_start` / `purchase` / `signup` / `login` / `search`
+
+**特点：** `navigator.sendBeacon` 不阻塞导航，支持页面卸载时发送。
+
+### L3-1：Multi-tenant KV 前缀（sharing/kv-keys.js）
+
+**实现文件：** `sharing/kv-keys.js`
+
+所有 KV Key 统一加租户前缀：
+```
+Phase 3: "default:session:abc123"
+Phase 4: "{tenant}:session:abc123"（从 JWT payload.tenant 动态读取）
+```
+
+### Phase 3 新增文件清单
+
+```
+sharing/
+├── jwt-helper.js              ✅ RS256 + HS256 双轨
+├── kv-keys.js                 ✅ 多租户前缀
+└── i18n/
+    ├── zh-CN.js               ✅ 中文
+    ├── en-US.js               ✅ 英文
+    └── i18n.js                ✅ 翻译函数
+
+cloud-functions/
+├── utils/
+│   └── order-state-machine.js ✅ 核心状态机
+├── api/order/
+│   └── transition.js          ✅ 状态变更 API
+└── cron/
+    └── order-cron.js          ✅ 定时任务
+
+client/src/utils/
+├── seo.js                     ✅ SEO 工具
+└── analytics.js               ✅ 埋点 SDK
+
+edge-functions/
+├── api/
+│   ├── sitemap.xml.js         ✅ Sitemap API
+│   └── analytics/event.js     ✅ 埋点接收
+
+db/migrations/
+└── 002_order_logs.sql         ✅ 审计日志表
+
+references/
+├── admin-module.md            ✅ 补充
+├── edge-functions.md          ✅ 补充
+├── cloud-functions.md         ✅ 补充
+├── middleware.md              ✅ 补充
+└── deployment.md              ✅ 补充
+```
+
+---
+
+## 十九、Phase 3 验收标准
+
+| ID | 验收项 | 验证方法 |
+|----|--------|---------|
+| P3-01 | RS256：新 token 用 RS256 私钥签发 | 代码审查 + 手动 JWT 解析 |
+| P3-02 | RS256：HS256 旧 token 30 天内仍可验证 | 测试过期 token 验证 |
+| P3-03 | 订单状态机：用户取消 PENDING 订单成功 | 调用 transition API |
+| P3-04 | 订单状态机：用户无法 PAID→CANCELLED（403） | 调用 transition API |
+| P3-05 | 库存联动：取消/退款时 stock 回补 | 查询 products 表 |
+| P3-06 | 审计日志：每次状态变更写入 order_status_logs | 查询数据库 |
+| P3-07 | Cron：PENDING 超时 30 分钟自动 CANCELLED | 模拟超时订单 |
+| P3-08 | SEO JSON-LD：产品页含 schema.org 结构化数据 | 审查页面源码 |
+| P3-09 | Sitemap：/api/sitemap.xml 返回有效 XML | curl 访问 |
+| P3-10 | i18n：`t('order.status.PAID')` 正确输出中英文 | 切换语言测试 |
+| P3-11 | Analytics：add_to_cart 事件通过 sendBeacon 发送 | Network 面板验证 |
+| P3-12 | Multi-tenant：KV key 格式含 "default:" 前缀 | 代码审查 |
+
+---
+
+## 二十、未来演进
+
+```
+Phase 1：Mock 数据 Demo ✅
+Phase 2：P0/P1 安全设计 + P2 设计文档 ✅
+Phase 3：P2 编码实现 + Layer 2 Addon + 多租户铺垫 ✅
+
+Phase 4（规划中）：多租户 SaaS
+  - KV key 从 JWT payload.tenant 动态读取
+  - 租户隔离数据库（MySQL schema）
+  - 租户管理后台
+  - 计费系统（按量/订阅）
+
+Phase 5（规划中）：npm 包化
+  npm install @site-skeleton/auth
+  npm install @site-skeleton/payment
+```
+
+*Skill 版本演进由评审驱动，每 Phase 完成后更新版本号与文档。*

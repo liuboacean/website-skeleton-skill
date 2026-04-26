@@ -26,6 +26,8 @@
     }
   },
   "envVars": [
+    "JWT_PRIVATE_KEY",
+    "JWT_PUBLIC_KEY",
     "JWT_SECRET",
     "WX_APPID",
     "WX_MCHID",
@@ -65,11 +67,13 @@
   ],
   "securityChecks": [
     "bcrypt cost=12",
-    "JWT 15min + RT 7d 轮换",
+    "JWT RS256 + 30天 HS256 兼容窗口",
+    "JWT 15min AT + RT 7d 轮换",
     "Cookie HttpOnly + Secure + SameSite=Strict",
     "支付幂等 putIfNotExists",
     "金额服务端 MySQL 读取",
     "AI 限流",
-    "CSP Header"
+    "CSP Header",
+    "订单状态机（6状态 + 权限矩阵 + 审计日志）"
   ]
 }
