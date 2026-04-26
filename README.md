@@ -2,8 +2,8 @@
 
 > **提交单位：** 刘博
 > **提交日期：** 2026-04-26
-> **Skill 版本：** v2.1
-> **Demo 部署地址：** https://geek-mall-demo-4qaxvmeh.edgeone.cool
+> **Skill 版本：** v2.2 · Phase 2 详细设计完成
+> **Demo 部署地址：** https://geek-mall-demo-4qaxvmeh.edgeone.cool（需有效期内的 EdgeOne Pages 访问 Token）
 
 ---
 

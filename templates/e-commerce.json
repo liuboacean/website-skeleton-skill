@@ -13,7 +13,7 @@
     "admin": true
   },
   "layer2": {
-    "notification": false,
+    "notification": true,
     "seo": false,
     "analytics": false,
     "i18n": false
