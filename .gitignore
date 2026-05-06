@@ -1,0 +1,10 @@
+node_modules/
+.edgeone/
+.env
+.edgeone/.token
+test-report.json
+
+# sync-sharing.js 构建产物（由 npm run build 生成）
+cloud-functions/shared/
+edge-functions/sharing/
+packages/shared/src/

@@ -16,8 +16,6 @@
  *   JWT_SECRET      — HS256 兼容密钥（Phase 3 后逐步废弃）
  */
 
-import { crypto } from '@edge-runtime/primitives';
-
 // ===================== 常量 =====================
 const ALGORITHM_RS256 = 'RS256';
 const ALGORITHM_HS256 = 'HS256';
@@ -124,7 +122,15 @@ function base64UrlDecode(str) {
 export async function signJWT(payload, expiresInMs, env) {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: ALGORITHM_RS256, typ: 'JWT' };
-  const body = { ...payload, iat: now, exp: now + Math.floor(expiresInMs / 1000) };
+  // Phase 4: 透传 tenant/role，增加 jti 支持吊销
+  const body = {
+    ...payload,
+    tenant: payload.tenant || 'default',
+    role: payload.role || 'user',
+    jti: payload.jti || crypto.randomUUID(),
+    iat: now,
+    exp: now + Math.floor(expiresInMs / 1000)
+  };
 
   const headerEncoded = base64UrlEncode(new TextEncoder().encode(JSON.stringify(header)));
   const bodyEncoded = base64UrlEncode(new TextEncoder().encode(JSON.stringify(body)));
@@ -239,6 +245,10 @@ export async function verifyJWT(token, env) {
       const publicKey = await importRSAPublicKey(env.JWT_PUBLIC_KEY);
       const result = await verifyRS256(token, publicKey);
       if (result.valid) {
+        // Phase 4 P0-5: 旧 token（无 tenant 字段）从 users 表反查
+        if (!result.payload.tenant) {
+          await resolveLegacyTenant(result.payload, env);
+        }
         return { ...result.payload, _alg: ALGORITHM_RS256 };
       }
     }
@@ -256,6 +266,10 @@ export async function verifyJWT(token, env) {
         const compatDeadline = Date.now() - HS256_COMPAT_WINDOW_MS;
         if (issuedAt > compatDeadline) {
           console.info(`[JWT] HS256 token accepted (within 30d compat window, iat=${new Date(issuedAt).toISOString()})`);
+          // Phase 4 P0-5: 旧 token（无 tenant 字段）从 users 表反查
+          if (!result.payload.tenant) {
+            await resolveLegacyTenant(result.payload, env);
+          }
           return { ...result.payload, _alg: ALGORITHM_HS256 };
         } else {
           console.info('[JWT] HS256 token rejected (outside 30d compat window)');
@@ -267,6 +281,33 @@ export async function verifyJWT(token, env) {
   }
 
   return null;
+}
+
+/**
+ * Phase 4 P0-5: 旧 token 从 users 表反查真实 tenant（渐进路径）
+ * users 表是全局认证表，不受租户隔离约束
+ */
+async function resolveLegacyTenant(payload, env) {
+  try {
+    if (payload.sub && env.DB) {
+      const user = await env.DB.prepare('SELECT tenant_id, role FROM users WHERE id = ?')
+        .bind(payload.sub).first();
+      if (user) {
+        payload.tenant = user.tenant_id || 'default';
+        payload.role = user.role || 'user';
+        payload._isLegacy = true;
+        console.info(`[JWT] Legacy token resolved: userId=${payload.sub}, tenant=${payload.tenant}`);
+      } else {
+        payload.tenant = 'default';
+        payload._isLegacy = true;
+      }
+    } else {
+      payload.tenant = 'default';
+    }
+  } catch (err) {
+    console.warn('[JWT] Failed to resolve legacy token tenant:', err.message);
+    payload.tenant = 'default';
+  }
 }
 
 /**

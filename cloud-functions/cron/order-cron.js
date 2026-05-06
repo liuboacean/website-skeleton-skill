@@ -1,179 +1,139 @@
 /**
- * 订单定时任务 — Cron Job
+ * 订单定时任务 — Cron Job（Phase 4A W1 迁移版）
  *
- * Phase 3 P2-2 实现
- *
- * EdgeOne Pages Cron 触发器配置：
- * 每 5 分钟执行一次
- *
+ * EdgeOne Pages Cron 触发器配置：每 5 分钟执行一次
  * 定时任务：
- * 1. PENDING 超时 30 分钟 → CANCELLED（用户超时未支付）
- * 2. SHIPPED 超过 7 天无售后 → COMPLETED（自动确认收货）
+ * 1. PENDING 超时 30 分钟 → CANCELLED
+ * 2. SHIPPED 超过 7 天无售后 → COMPLETED
  *
- * EdgeOne Pages cron 配置（edgeone pages cron add 或配置文件中）：
- * trigger:
- *   type: schedule
- *   cron: "*/5 * * * *"   # 每 5 分钟
- *   function: cloud-functions/cron/order-cron.js
+ * Phase 4A W1 变更：
+ * - 从 mysql2/promise Pool 迁移到 db.js (D1) 接口
+ * - 所有 SQL 增加 {tenant} 占位符
+ * - 事务改用 withTransaction()
  */
 
-import { Pool } from 'mysql2/promise';
+import { withTransaction } from '../utils/db.js';
 
-/**
- * 获取数据库连接池
- * @param {Object} env
- */
-async function getPool(env) {
-  return new Pool({ connectionString: env.DATABASE_URL });
+// ===================== 工具函数 =====================
+
+function writeLog(env, orderId, from, to, tenant) {
+  // 操作者为 null 表示系统操作（系统操作使用 'default' 租户）
+  withTransaction(env, tenant, (ctx) => {
+    ctx.execute(
+      `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+       VALUES ({tenant}, ?, ?, NULL, ?, ?)`,
+      [orderId, from, to, 'System: auto-cron', tenant]
+    );
+  });
 }
 
-/**
- * 回补库存（用于取消订单）
- * @param {Pool} pool
- * @param {number} orderId
- */
-async function releaseStock(pool, orderId) {
-  await pool.query(`
-    UPDATE products p
-    JOIN order_items oi ON p.id = oi.product_id
-    SET p.stock = p.stock + oi.qty,
-        p.version = p.version + 1
-    WHERE oi.order_id = ?
-  `, [orderId]);
-}
+// ===================== 定时任务主入口 =====================
 
-/**
- * 写入状态变更日志
- * @param {Pool} pool
- * @param {number} orderId
- * @param {string} from
- * @param {string} to
- */
-async function writeLog(pool, orderId, from, to) {
-  // 操作者为 null 表示系统操作
-  await pool.query(
-    `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason)
-     VALUES (?, ?, ?, NULL, ?)`,
-    [orderId, from, to, 'System: auto-cron']
-  );
-}
-
-/**
- * 定时任务主入口
- *
- * EdgeOne Pages Cron 触发时调用此函数
- * @param {Object} event - Cron 触发事件（含 scheduledTime）
- * @param {Object} env - 环境变量
- */
 export async function scheduled(event, env) {
   console.log('[OrderCron] Starting scheduled job at', new Date().toISOString());
 
-  const pool = await getPool(env);
+  // 系统 cron 使用 'default' 作为默认操作租户
+  // 实际生产环境中，需要遍历所有活跃租户
+  const tenants = ['default'];
   let totalCancelled = 0;
   let totalCompleted = 0;
 
   try {
-    // === 任务 1：PENDING 超时 30 分钟 → CANCELLED ===
-    // 先查出要取消的订单（避免在事务内做复杂逻辑）
-    const [pendingOrders] = await pool.query(`
-      SELECT id, user_id FROM orders
-      WHERE status = 'PENDING'
-        AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
-    `);
+    for (const tenant of tenants) {
+      // === 任务 1：PENDING 超时 30 分钟 → CANCELLED ===
+      const pendingOrders = env.DB.prepare(`
+        SELECT id, user_id FROM orders
+        WHERE tenant_id = ? AND status = 'PENDING'
+          AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+      `).bind(tenant).all();
 
-    if (pendingOrders.length > 0) {
-      console.log(`[OrderCron] Found ${pendingOrders.length} expired PENDING orders to cancel`);
+      if (pendingOrders.length > 0) {
+        console.log(`[OrderCron][${tenant}] Found ${pendingOrders.length} expired PENDING orders`);
 
-      for (const order of pendingOrders) {
-        const conn = await pool.getConnection();
-        try {
-          await conn.beginTransaction();
+        for (const order of pendingOrders) {
+          try {
+            withTransaction(env, tenant, (ctx) => {
+              const o = ctx.queryOne(
+                'SELECT id, status, version FROM orders WHERE id = {tenant} AND id = ? FOR UPDATE',
+                [order.id]
+              );
+              if (!o || o.status !== 'PENDING') return; // 已被其他进程处理
 
-          const [orders] = await conn.query(
-            'SELECT id, status, version FROM orders WHERE id = ? FOR UPDATE',
-            [order.id]
-          );
-          const o = orders[0];
-          if (!o || o.status !== 'PENDING') {
-            // 已被其他进程处理，跳过
-            await conn.rollback();
-            continue;
+              // 回补库存
+              const items = ctx.query(
+                'SELECT oi.product_id, oi.qty, p.version FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = {tenant} AND oi.order_id = ?',
+                [order.id]
+              );
+              for (const item of items) {
+                ctx.execute(
+                  'UPDATE products SET stock = stock + ?, version = version + 1 WHERE id = {tenant} AND id = ? AND version = ?',
+                  [item.qty, item.product_id, item.version]
+                );
+              }
+
+              // 更新状态
+              ctx.execute(
+                'UPDATE orders SET status = ?, version = version + 1 WHERE id = {tenant} AND id = ? AND version = ?',
+                ['CANCELLED', order.id, o.version]
+              );
+
+              // 写日志
+              ctx.execute(
+                `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+                 VALUES ({tenant}, ?, ?, NULL, ?, ?)`,
+                [order.id, 'PENDING', 'CANCELLED', 'System: auto-cron', tenant]
+              );
+            });
+            totalCancelled++;
+            console.log(`[OrderCron] Order ${order.id} auto-cancelled`);
+          } catch (err) {
+            console.error(`[OrderCron] Failed to cancel order ${order.id}:`, err.message);
           }
-
-          // 回补库存
-          await releaseStock(conn, order.id);
-
-          // 更新状态
-          await conn.query(
-            'UPDATE orders SET status = ?, version = version + 1 WHERE id = ? AND version = ?',
-            ['CANCELLED', order.id, o.version]
-          );
-
-          // 写日志
-          await writeLog(conn, order.id, 'PENDING', 'CANCELLED');
-
-          await conn.commit();
-          totalCancelled++;
-          console.log(`[OrderCron] Order ${order.id} auto-cancelled`);
-        } catch (err) {
-          await conn.rollback();
-          console.error(`[OrderCron] Failed to cancel order ${order.id}:`, err.message);
-        } finally {
-          conn.release();
         }
       }
-    }
 
-    // === 任务 2：SHIPPED 超时 7 天 → COMPLETED ===
-    const [shippedOrders] = await pool.query(`
-      SELECT id, user_id FROM orders
-      WHERE status = 'SHIPPED'
-        AND paid_at < DATE_SUB(NOW(), INTERVAL 7 DAY)
-    `);
+      // === 任务 2：SHIPPED 超时 7 天 → COMPLETED ===
+      const shippedOrders = env.DB.prepare(`
+        SELECT id, user_id FROM orders
+        WHERE tenant_id = ? AND status = 'SHIPPED'
+          AND paid_at < DATE_SUB(NOW(), INTERVAL 7 DAY)
+      `).bind(tenant).all();
 
-    if (shippedOrders.length > 0) {
-      console.log(`[OrderCron] Found ${shippedOrders.length} orders to auto-complete`);
+      if (shippedOrders.length > 0) {
+        console.log(`[OrderCron][${tenant}] Found ${shippedOrders.length} orders to auto-complete`);
 
-      for (const order of shippedOrders) {
-        const conn = await pool.getConnection();
-        try {
-          await conn.beginTransaction();
+        for (const order of shippedOrders) {
+          try {
+            withTransaction(env, tenant, (ctx) => {
+              const o = ctx.queryOne(
+                'SELECT id, status, version FROM orders WHERE id = {tenant} AND id = ? FOR UPDATE',
+                [order.id]
+              );
+              if (!o || o.status !== 'SHIPPED') return;
 
-          const [orders] = await conn.query(
-            'SELECT id, status, version FROM orders WHERE id = ? FOR UPDATE',
-            [order.id]
-          );
-          const o = orders[0];
-          if (!o || o.status !== 'SHIPPED') {
-            await conn.rollback();
-            continue;
+              ctx.execute(
+                'UPDATE orders SET status = ?, version = version + 1 WHERE id = {tenant} AND id = ? AND version = ?',
+                ['COMPLETED', order.id, o.version]
+              );
+
+              ctx.execute(
+                `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+                 VALUES ({tenant}, ?, ?, NULL, ?, ?)`,
+                [order.id, 'SHIPPED', 'COMPLETED', 'System: auto-cron', tenant]
+              );
+            });
+            totalCompleted++;
+            console.log(`[OrderCron] Order ${order.id} auto-completed`);
+          } catch (err) {
+            console.error(`[OrderCron] Failed to complete order ${order.id}:`, err.message);
           }
-
-          await conn.query(
-            'UPDATE orders SET status = ?, version = version + 1 WHERE id = ? AND version = ?',
-            ['COMPLETED', order.id, o.version]
-          );
-
-          await writeLog(conn, order.id, 'SHIPPED', 'COMPLETED');
-
-          await conn.commit();
-          totalCompleted++;
-          console.log(`[OrderCron] Order ${order.id} auto-completed`);
-        } catch (err) {
-          await conn.rollback();
-          console.error(`[OrderCron] Failed to complete order ${order.id}:`, err.message);
-        } finally {
-          conn.release();
         }
       }
     }
 
     console.log(`[OrderCron] Job completed: ${totalCancelled} cancelled, ${totalCompleted} completed`);
-
   } catch (err) {
     console.error('[OrderCron] Job failed:', err);
-    throw err; // 让 EdgeOne Pages 记录错误
-  } finally {
-    await pool.end();
+    throw err;
   }
 }

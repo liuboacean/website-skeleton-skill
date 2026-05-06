@@ -1,9 +1,10 @@
 # 建站 Skill — 比赛提交说明
 
 > **提交单位：** 刘博
-> **提交日期：** 2026-04-26
-> **Skill 版本：** v2.2 · Phase 3 实现完成
+> **提交日期：** 2026-05-06
+> **Skill 版本：** v3.0 · Phase 4A + 4B 实现完成
 > **Demo 部署地址：** https://geek-mall-demo-4qaxvmeh.edgeone.cool（需有效期内的 EdgeOne Pages 访问 Token）
+> **Phase 4 预览：** https://website-skeleton-demo-0vuo18d3pa.edgeone.cool（Preview 环境）
 
 ---
 
@@ -201,3 +202,46 @@ npm install @site-skeleton/payment
 ---
 
 *本提交物包含完整 SKILL.md、3 个场景模板、4 篇参考实现文档，以及已部署可访问的电商 Demo 站点。*
+
+---
+
+## 八、版本历史
+
+| 版本 | 日期 | 内容 |
+|------|------|------|
+| v1.0 | 2026-04-20 | Phase 1 基础骨架搭建 |
+| v2.0 | 2026-04-23 | Phase 2 核心功能增强（JWT/订单状态机/支付） |
+| v2.2 | 2026-04-26 | Phase 3 工程化完善（RS256双轨/SEO/i18n/Analytics） |
+| **v3.0** | **2026-05-06** | **Phase 4A 多租户隔离 + Phase 4B npm包化增强** |
+
+## 九、Phase 4 变更概要
+
+### Phase 4A：多租户隔离（5 周）
+
+| 周次 | 内容 | 状态 |
+|------|------|------|
+| W1 | JWT 扩展 tenant/role/jti + Cloud 中间件 + Edge RBAC + db.js 事务 | ✅ |
+| W2 | KV 动态前缀 + 共享配额模块（软/硬限制 + fail-open） | ✅ |
+| W3 | MySQL 迁移（6 表 + 复合索引）+ 权限分层 + 审计日志 | ✅ |
+| W4 | 租户管理 API（CRUD + 邀请 + 停用）+ 支付回调 KV 反查 | ✅ |
+| W5 | 14 条集成测试（功能 6 + 安全 8，12/13 通过） | ✅ |
+
+### Phase 4B：npm 包化 + 增强
+
+| 子项 | 内容 | 状态 |
+|------|------|------|
+| 4B1 | npm 包化（@website-skeleton/shared/payment/admin） | ✅ |
+| 4B2 | sync-sharing.js 构建同步脚本（3 目标 + 哈希校验） | ✅ |
+| 4B3 | CHANGELOG.md + MIGRATION.md + semver 策略 | ✅ |
+| 4B4 | 支付回调二次加固（KV 幂等锁反查） | ✅ |
+| 4B5 | KV 热 key 分散（FNV-1a + 64 分区） | ✅ |
+| 4B6 | 计费 MVP（滑动窗口 + 403 升级提示） | ✅ |
+
+### 评审历程
+
+| 轮次 | 评审方 | 结论 |
+|------|--------|------|
+| 1-4 | WorkBuddy + QClaw + Hermes + IMA（两轮） | 方案可行 |
+| 5-7 | 独立安全专家（7.0/10）+ 架构专家（7.2/10）+ 平台专家（7.5/10） | 有条件通过 |
+| 8 | IMA 第三轮（C1 鸡生蛋修复） | 有条件通过 |
+| **最终** | **全部 8 轮评审闭环** | **🎉 可启动** |

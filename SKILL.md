@@ -1,6 +1,11 @@
+---
+name: 建站骨架 (EdgeOne Pages)
+description: 一句话说需求，AI 生成完整前后端网站并自动部署到 EdgeOne Pages。支持电商栈（Auth/购物车/支付）、AI 栈（SSE 流式对话）、管理后台。触发词：帮我建网站、建一个电商网站、做 AI 客服站、建管理后台、EdgeOne Pages 建站
+---
+
 # 建站 Skill — EdgeOne Pages 全栈网站骨架
 
-> **版本：** 2.2 · **日期：** 2026-04-26 · **Phase 3 实现完成**
+> **版本：** 3.0 · **日期：** 2026-05-06 · **Phase 4A + 4B 实现完成**
 > **一句话描述：** 用户说一句话，AI 生成完整前后端网站，自动部署到 EdgeOne Pages。
 
 ---
