@@ -21,12 +21,12 @@ async function releaseStock(env, orderId, tenant) {
     SELECT oi.product_id, oi.qty, p.version
     FROM order_items oi
     JOIN products p ON p.id = oi.product_id
-    WHERE oi.order_id = {tenant} AND oi.order_id = ?
+    WHERE oi.tenant_id = {tenant} AND oi.order_id = ?
   `, [orderId], tenant);
 
   for (const item of items) {
     const result = execute(env,
-      'UPDATE products SET stock = stock + ?, version = version + 1 WHERE id = {tenant} AND id = ? AND version = ?',
+      'UPDATE products SET stock = stock + ?, version = version + 1 WHERE tenant_id = {tenant} AND id = ? AND version = ?',
       [item.qty, item.product_id, item.version], tenant
     );
     if (result.affectedRows === 0) {
@@ -39,7 +39,7 @@ async function releaseStock(env, orderId, tenant) {
 
 async function writeStatusLog(env, orderId, fromStatus, toStatus, operatorId, reason, tenant) {
   execute(env,
-    `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+    `INSERT INTO order_status_logs (tenant_id, order_id, from_status, to_status, operator, reason)
      VALUES ({tenant}, ?, ?, ?, ?, ?)`,
     [orderId, fromStatus, toStatus, operatorId, reason || null], tenant
   );
@@ -85,7 +85,7 @@ export async function onRequest(request, env) {
     return withTransaction(env, tenant, (ctx) => {
       // Step 1: SELECT FOR UPDATE 锁行
       const order = ctx.queryOne(
-        'SELECT id, status, user_id, version FROM orders WHERE id = {tenant} AND id = ? FOR UPDATE',
+        'SELECT id, status, user_id, version FROM orders WHERE tenant_id = {tenant} AND id = ? FOR UPDATE',
         [orderId]
       );
 
@@ -113,12 +113,12 @@ export async function onRequest(request, env) {
       // Step 3: 库存回补（取消/退款时）
       if ([OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(toStatus)) {
         const items = ctx.query(
-          'SELECT oi.product_id, oi.qty, p.version FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = {tenant} AND oi.order_id = ?',
+          'SELECT oi.product_id, oi.qty, p.version FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.tenant_id = {tenant} AND oi.order_id = ?',
           [orderId]
         );
         for (const item of items) {
           const result = ctx.execute(
-            'UPDATE products SET stock = stock + ?, version = version + 1 WHERE id = {tenant} AND id = ? AND version = ?',
+            'UPDATE products SET stock = stock + ?, version = version + 1 WHERE tenant_id = {tenant} AND id = ? AND version = ?',
             [item.qty, item.product_id, item.version]
           );
           if (result.affectedRows === 0) {
@@ -142,7 +142,7 @@ export async function onRequest(request, env) {
       updateParams.push(orderId, version);
 
       const result = ctx.execute(
-        `UPDATE orders SET ${updateFields.join(', ')} WHERE id = {tenant} AND id = ? AND version = ?`,
+        `UPDATE orders SET ${updateFields.join(', ')} WHERE tenant_id = {tenant} AND id = ? AND version = ?`,
         updateParams
       );
 
@@ -155,7 +155,7 @@ export async function onRequest(request, env) {
 
       // Step 5: 审计日志
       ctx.execute(
-        `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+        `INSERT INTO order_status_logs (tenant_id, order_id, from_status, to_status, operator, reason)
          VALUES ({tenant}, ?, ?, ?, ?, ?)`,
         [orderId, fromStatus, toStatus, userId, reason || null]
       );

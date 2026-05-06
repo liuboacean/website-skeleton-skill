@@ -20,7 +20,7 @@ function writeLog(env, orderId, from, to, tenant) {
   // 操作者为 null 表示系统操作（系统操作使用 'default' 租户）
   withTransaction(env, tenant, (ctx) => {
     ctx.execute(
-      `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+      `INSERT INTO order_status_logs (tenant_id, order_id, from_status, to_status, operator, reason)
        VALUES ({tenant}, ?, ?, NULL, ?, ?)`,
       [orderId, from, to, 'System: auto-cron', tenant]
     );
@@ -54,32 +54,32 @@ export async function scheduled(event, env) {
           try {
             withTransaction(env, tenant, (ctx) => {
               const o = ctx.queryOne(
-                'SELECT id, status, version FROM orders WHERE id = {tenant} AND id = ? FOR UPDATE',
+                'SELECT id, status, version FROM orders WHERE tenant_id = {tenant} AND id = ? FOR UPDATE',
                 [order.id]
               );
               if (!o || o.status !== 'PENDING') return; // 已被其他进程处理
 
               // 回补库存
               const items = ctx.query(
-                'SELECT oi.product_id, oi.qty, p.version FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.order_id = {tenant} AND oi.order_id = ?',
+                'SELECT oi.product_id, oi.qty, p.version FROM order_items oi JOIN products p ON p.id = oi.product_id WHERE oi.tenant_id = {tenant} AND oi.order_id = ?',
                 [order.id]
               );
               for (const item of items) {
                 ctx.execute(
-                  'UPDATE products SET stock = stock + ?, version = version + 1 WHERE id = {tenant} AND id = ? AND version = ?',
+                  'UPDATE products SET stock = stock + ?, version = version + 1 WHERE tenant_id = {tenant} AND id = ? AND version = ?',
                   [item.qty, item.product_id, item.version]
                 );
               }
 
               // 更新状态
               ctx.execute(
-                'UPDATE orders SET status = ?, version = version + 1 WHERE id = {tenant} AND id = ? AND version = ?',
+                'UPDATE orders SET status = ?, version = version + 1 WHERE tenant_id = {tenant} AND id = ? AND version = ?',
                 ['CANCELLED', order.id, o.version]
               );
 
               // 写日志
               ctx.execute(
-                `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+                `INSERT INTO order_status_logs (tenant_id, order_id, from_status, to_status, operator, reason)
                  VALUES ({tenant}, ?, ?, NULL, ?, ?)`,
                 [order.id, 'PENDING', 'CANCELLED', 'System: auto-cron', tenant]
               );
@@ -106,18 +106,18 @@ export async function scheduled(event, env) {
           try {
             withTransaction(env, tenant, (ctx) => {
               const o = ctx.queryOne(
-                'SELECT id, status, version FROM orders WHERE id = {tenant} AND id = ? FOR UPDATE',
+                'SELECT id, status, version FROM orders WHERE tenant_id = {tenant} AND id = ? FOR UPDATE',
                 [order.id]
               );
               if (!o || o.status !== 'SHIPPED') return;
 
               ctx.execute(
-                'UPDATE orders SET status = ?, version = version + 1 WHERE id = {tenant} AND id = ? AND version = ?',
+                'UPDATE orders SET status = ?, version = version + 1 WHERE tenant_id = {tenant} AND id = ? AND version = ?',
                 ['COMPLETED', order.id, o.version]
               );
 
               ctx.execute(
-                `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+                `INSERT INTO order_status_logs (tenant_id, order_id, from_status, to_status, operator, reason)
                  VALUES ({tenant}, ?, ?, NULL, ?, ?)`,
                 [order.id, 'SHIPPED', 'COMPLETED', 'System: auto-cron', tenant]
               );

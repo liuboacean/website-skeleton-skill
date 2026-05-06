@@ -52,12 +52,12 @@ export async function onRequest(request, env) {
   // Step 3: 更新订单状态 + 审计日志
   withTransaction(env, tenant, (ctx) => {
     ctx.execute(
-      "UPDATE orders SET status = ?, paid_at = NOW() WHERE order_id = {tenant} AND order_id = ? AND status = ?",
+      "UPDATE orders SET status = ?, paid_at = NOW() WHERE tenant_id = {tenant} AND order_id = ? AND status = ?",
       ['PAID', orderId, 'PENDING']
     );
 
     ctx.execute(
-      `INSERT INTO order_status_logs (order_id, from_status, to_status, operator, reason, tenant_id)
+      `INSERT INTO order_status_logs (tenant_id, order_id, from_status, to_status, operator, reason)
        VALUES ({tenant}, ?, ?, ?, ?, ?)`,
       [orderId, 'PENDING', 'PAID', 'system:wx-notify', '微信支付回调', tenant]
     );
