@@ -1,207 +1,341 @@
-# 建站 Skill — 比赛提交说明
+<p align="center">
+  <img src="https://img.shields.io/badge/version-v3.0-blue?style=flat-square" alt="version">
+  <img src="https://img.shields.io/badge/EdgeOne_Pages-ready-brightgreen?style=flat-square" alt="EdgeOne Pages">
+  <img src="https://img.shields.io/badge/license-MIT_No_Attribution-green?style=flat-square" alt="license">
+  <img src="https://img.shields.io/badge/status-stable-brightgreen?style=flat-square" alt="status">
+  <img src="https://img.shields.io/badge/Phase_4_多租户_SaaS-%E2%9C%85-success?style=flat-square" alt="Phase 4">
+  <a href="https://geek-mall-demo-4qaxvmeh.edgeone.cool"><img src="https://img.shields.io/badge/demo-live-purple?style=flat-square" alt="Demo"></a>
+</p>
 
-> **提交单位：** 刘博
-> **提交日期：** 2026-05-06
-> **Skill 版本：** v3.0 · Phase 4A + 4B 实现完成
-> **Demo 部署地址：** https://geek-mall-demo-4qaxvmeh.edgeone.cool（需有效期内的 EdgeOne Pages 访问 Token）
-> **Phase 4 预览：** https://website-skeleton-demo-0vuo18d3pa.edgeone.cool（Preview 环境）
+# Website Skeleton Skill
 
----
+> **One sentence to build a full-stack website.** Generate auth, payments, AI chat, and admin panel — deploy to EdgeOne Pages.
 
-## 一、参赛作品概述
-
-**作品名称：** website-skeleton-skill
-**一句话介绍：** 用户说一句话，AI 生成完整前后端网站，自动部署到 EdgeOne Pages。
-
-### 解决的问题
-
-传统建站存在三个核心痛点：
-
-| 痛点 | 现状 | 我们的方案 |
-|------|------|-----------|
-| **技术门槛高** | 需要懂 Next.js/React + Node.js + MySQL + 部署 | Skill 生成零配置代码，用户只描述需求 |
-| **安全漏洞多** | 电商站常见支付幂等、RT 轮换、超卖问题 | 六轮专家评审，Critical 问题在设计阶段全部修复 |
-| **部署复杂** | 需要手动配置 CDN、SSL、CI/CD | 一行命令 `edgeone deploy`，全球加速 |
-
-### 核心技术差异
-
-1. **EdgeOne Pages 双运行时架构**：Edge Functions（无密钥、轻量、KV）处理读操作；Cloud Functions（含密钥、MySQL）处理写操作，职责边界清晰
-2. **支付幂等原子锁**：业界首次将 Edge `putIfNotExists` 用于支付回调幂等，24h TTL < 微信重试窗口 72h
-3. **RT 并发安全**：KV version 乐观锁解决 Refresh Token 并发轮换问题
-4. **订单原子性**：MySQL `SELECT FOR UPDATE` + 乐观锁 + CHECK 约束，三重防超卖
+[English](#english) · [中文](#chinese) · [Demo](https://geek-mall-demo-4qaxvmeh.edgeone.cool)
 
 ---
 
-## 二、提交内容
+## English
 
-```
-website-skeleton-skill/
-├── SKILL.md                    ✅ 核心 Skill 指令文件（自包含完整说明）
-├── templates/
-│   ├── e-commerce.json         ✅ 电商场景模板
-│   ├── ai-assistant.json       ✅ AI 助手场景模板
-│   └── saas-admin.json         ✅ SaaS 管理后台场景模板
-├── references/
-│   ├── auth-module.md          ✅ JWT RS256 + HS256 兼容 + KV Session
-│   ├── payment-module.md       ✅ Payment 模块实现参考
-│   ├── ai-chat-module.md       ✅ AI Chat 模块实现参考
-│   ├── admin-module.md         ✅ RBAC + CRUD + 运营统计 + 审计日志
-│   ├── order-state-machine.md   ✅ 6状态 + 权限矩阵 + 库存联动 + Cron
-│   ├── edge-functions.md       ✅ Edge Middleware + KV API + 限流
-│   ├── cloud-functions.md      ✅ MySQL 事务 + bcrypt + 支付 SDK + SSE
-│   ├── middleware.md           ✅ Platform + Edge 双层 + CSP + bypass
-│   ├── kv-storage.md           ✅ KV 存储策略参考
-│   └── deployment.md           ✅ 完整部署流程 + Cron + 回滚
-└── README.md                   ✅ 本文件
-```
+**website-skeleton-skill** is an EdgeOne Pages skill that scaffolds full-stack websites from a single prompt. It combines 5 reusable modules (Auth, Cart, Payment, AI Chat, Admin) across 3 scene templates (E-commerce, AI Assistant, SaaS Admin).
 
----
-
-## 三、演示站点
-
-**已部署：** https://geek-mall-demo-4qaxvmeh.edgeone.cool
-
-**已验证功能：**
-
-| 功能 | 状态 | 说明 |
-|------|------|------|
-| 首页商品浏览 | ✅ | 12 个科技商品，分类筛选 |
-| 用户注册 | ✅ | bcrypt cost=12 密码哈希 |
-| 用户登录 | ✅ | JWT 15min + Refresh Token 7d |
-| 购物车 | ✅ | localStorage 持久化 |
-| 结账 | ✅ | 微信/支付宝选择 |
-| 模拟支付成功 | ✅ | 模拟回调，无需真实商户号 |
-| 订单列表 | ✅ | 状态标签展示 |
-
----
-
-## 四、Skill 使用方法
-
-### 快速开始
+### Quick Start
 
 ```bash
-# 1. 安装 CLI
-npm install -g edgeone@latest
+npm install -g edgeone
+edgeone login --site china
+edgeone pages deploy -n my-site
+```
+
+Follow the interactive prompts to choose your template and configure keys.
+
+### Features
+
+- **Dual runtime**: Edge Functions (KV, fast reads) + Cloud Functions (MySQL, secure writes)
+- **Phase 4 — Multi-tenant SaaS**: JWT tenant isolation, KV dynamic prefix, MySQL tenant_id, RBAC (superadmin/tenant_admin/user)
+- **Phase 4 — npm packages**: `@website-skeleton/payment`, `@website-skeleton/admin`, `@website-skeleton/shared`
+- **Payment idempotent lock**: Edge `putIfNotExists` with 24h TTL
+- **Concurrency safety**: KV version optimistic lock for refresh token rotation
+- **3 templates**: E-commerce / AI Assistant / SaaS Admin
+- **8 rounds of expert review**: Security 7.0/10, Architecture 7.2/10, Platform 7.5/10
+
+### Demo
+
+https://geek-mall-demo-4qaxvmeh.edgeone.cool
+
+### License
+
+MIT No Attribution — see [LICENSE](./LICENSE)
+
+---
+
+## Chinese
+
+# website-skeleton-skill
+
+> 一句话描述需求 → AI 生成完整前后端网站 → 自动部署到 EdgeOne Pages 全球 CDN。
+
+**版本：** v3.0 · **Phase 4A（多租户隔离）+ Phase 4B（npm 包化）已全部完成**
+
+---
+
+## 目录
+
+- [一、快速开始](#一快速开始)
+- [二、架构](#二架构)
+- [三、功能特性](#三功能特性)
+- [四、Phase 4 变更概要](#四phase-4-变更概要)
+- [五、目录结构](#五目录结构)
+- [六、安全设计](#六安全设计)
+- [七、评审历程](#七评审历程)
+- [八、版本历史](#八版本历史)
+- [九、License](#九license)
+
+---
+
+## 一、快速开始
+
+```bash
+# 1. 安装 EdgeOne CLI
+npm install -g edgeone
 
 # 2. 登录
 edgeone login --site china
 
-# 3. 创建新项目（交互式引导）
+# 3. 部署（交互式引导）
 edgeone pages deploy -n my-site
 
-# 4. 回答引导问题：
-# - 选择场景：[1] 电商 [2] AI助手 [3] 管理后台 [4] 自定义
-# - 填写基本信息（站点名）
-# - 确认密钥配置
-# - 执行数据库迁移
-
-# 5. 获取访问 URL
+# 4. 按提示选择场景模板、填写配置、执行数据库迁移
 ```
 
-### 场景模板说明
+### 场景模板
 
-| 模板 | 适用场景 | 包含模块 |
-|------|---------|---------|
-| **e-commerce.json** | 电商全链路 | Auth + Cart + Payment + Orders + Admin |
-| **ai-assistant.json** | AI 对话助手 | Auth + AI Chat + SSE 流式 + Widget |
-| **saas-admin.json** | SaaS 管理后台 | Auth + Admin RBAC + Stats + Audit |
-
----
-
-## 五、技术评审历程
-
-本 Skill 经历了六轮专家评审：
-
-| 轮次 | 评审人 | 结论 | 核心发现 |
-|------|--------|------|---------|
-| 第1轮 | Hermes v2 | ✅ 可进入 Phase 1 | 新增 Notification 钩子、db schema |
-| 第2轮 | QClaw | 🟡 **4个 Critical** | 支付幂等、RT 并发、KV 复合查询、订单超卖 |
-| 第3轮 | payment-expert | 🔧 已修复 | Edge 原子幂等锁 + SELECT FOR UPDATE |
-| 第4轮 | auth-expert | 🔧 已修复 | KV version 乐观锁 |
-| 第5轮 | 架构师 | ✅ 7/10 建议通过 | AI SSE 移至 Cloud，Orders 创建移至 Cloud |
-| 第6轮 | 前端架构师 | 🟡 6.2/10 需改进 | 组件拆分、构建流程、状态管理 |
-
-**v2.1 终版结论：** Critical 问题全部在设计阶段修复，可进入 Phase 1 实施。
+| 模板 | 适用场景 | 包含模块 | 快速命令 |
+|------|---------|---------|---------|
+| **🛒 电商** | 独立电商、品牌官网 | Auth + Cart + Payment (微信/支付宝) + Orders + Admin | `帮我搭一个电商网站` |
+| **🤖 AI 助手** | AI 客服、AI 工具站 | Auth + AI Chat (SSE流式) + Admin | `帮我做一个AI客服站` |
+| **📊 SaaS 管理后台** | B2B SaaS、管理后台 | Auth + RBAC + Stats + Subscription | `帮我建一个管理后台` |
 
 ---
 
-## 六、安全设计亮点
+## 二、架构
 
-### P0 安全措施（全部实现）
-
-| 安全措施 | 实现方案 | 效果 |
-|---------|---------|------|
-| 支付幂等原子锁 | Edge `putIfNotExists` 24h TTL | 防止微信重复回调导致重复发货 |
-| RT 并发安全 | KV version 乐观锁 | 两个并发刷新只有第一个成功 |
-| 订单超卖 | SELECT FOR UPDATE + 乐观锁 + CHECK | 三重防护，MySQL 层保证 |
-| 金额安全 | 服务端 MySQL 读取 | 前端无法篡改价格 |
-| 支付回调隔离 | Platform Middleware 直接 return | 绕过 Edge JWT 验证 |
-| 密码哈希 | bcrypt cost=12 | 业界标准，暴力破解成本极高 |
-
-### P1 安全措施（设计完整，Phase 1 可实施）
-
-- JWT 短期 Access Token（15min）+ RT 轮换
-- Cookie HttpOnly + Secure + SameSite=Strict
-- AI 聊天 KV 限流（未登录 10次/分钟，登录 60次/分钟）
-- CSP Header 注入
-- EventBus 401 自动跳转登录
-
----
-
-## 七、与 EdgeOne Pages 平台深度集成
-
-### 已验证的平台特性
-
-- ✅ **KV Storage**：用于 Auth Session、AI History、幂等锁
-- ✅ **Edge Functions**：JWT 校验、限流、商品列表
-- ✅ **Cloud Functions**：bcrypt、微信/支付宝支付、MySQL
-- ✅ **Platform Middleware**：CORS、CSP、支付回调 IP 白名单
-- ✅ **edgeone deploy**：自动构建 + 上传 + 部署 + 返回 URL
-- ✅ **edgeone whoami**：账号识别（刘博 · 100043397965）
-
-### 平台约束的尊重与利用
-
-| 约束 | 尊重方式 | 利用方式 |
-|------|---------|---------|
-| KV 仅 Edge 可用 | Node 通过 HTTP 调用 Edge | 用 Edge 做幂等锁网关 |
-| Cloud 200ms CPU | AI SSE 放在 Cloud（非 CPU 密集） | Cloud 处理支付 SDK 调用 |
-| Middleware 分层 | 支付回调 Platform 层直接 return | 解耦支付路径与 JWT 路径 |
-| .edgeone 目录构建 | 构建时生成 cloud-functions | 与 Next.js 构建无缝衔接 |
-
----
-
-## 八、未来演进路线
+### 双运行时设计
 
 ```
-Phase 1（完成）：Mock 数据 Demo 验证
-Phase 2（完成）：P0/P1 安全设计 + P2 设计文档
-Phase 3（完成）：P2 实现 + Layer 2 Addon + 多租户铺垫
-Phase 4（规划中）：多租户 SaaS + npm 包化
+┌──────────────────────────────────────────────────────────────────┐
+│  Platform Middleware                                              │
+│  CORS · CSP · 支付回调 IP 白名单（直接 return，不进 Edge）         │
+└──────────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────────┐
+│  Edge Functions (V8 + KV)                                        │
+│  JWT 校验 · KV Session · 限流 · 商品列表 · 幂等锁 · 租户路由     │
+│  延迟敏感、无密钥、轻量操作                                       │
+└──────────────────────────────────────────────────────────────────┘
+                              ↓（写操作/密钥操作）
+┌──────────────────────────────────────────────────────────────────┐
+│  Cloud Functions (Node.js + MySQL)                               │
+│  bcrypt · 支付创建/回调 · 订单状态机 · Admin CRUD · AI SSE 流     │
+│  密钥操作、复杂事务、SELECT FOR UPDATE                            │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**npm 包化（长期）：**
-```bash
-npm install @site-skeleton/auth
-npm install @site-skeleton/payment
-```
-核心安全模块抽为 npm 包，Skill 生成壳代码，升级只需 `npm update`。
+### 核心设计决策
 
----
-
-## 九、比赛评分维度自评
-
-| 维度 | 自评 | 说明 |
+| 决策 | 选择 | 理由 |
 |------|------|------|
-| **创新性** | ⭐⭐⭐⭐ | 场景模板优先 + Edge 双运行时组合，差异化 |
-| **实用性** | ⭐⭐⭐⭐⭐ | Demo 已部署可用，直接解决建站门槛问题 |
-| **技术深度** | ⭐⭐⭐⭐ | 六轮专家评审，Critical 问题设计阶段修复 |
-| **安全性** | ⭐⭐⭐⭐ | P0 全部覆盖，支付幂等/超卖防护有独创性 |
-| **完成度** | ⭐⭐⭐⭐ | SKILL.md 完整，参考文档齐全，Demo 可用 |
-| **可扩展性** | ⭐⭐⭐⭐ | Layer 分层，场景模板组合，npm 包化路线清晰 |
+| 数据库 | **MySQL 8.0.12+** | EdgeOne Pages Cloud Functions 原生支持，`SELECT FOR UPDATE` 事务需求 |
+| 认证 | **JWT RS256 + 30天 HS256 兼容窗口** | 安全性（RS256）与迁移平滑兼顾 |
+| 支付幂等 | **Edge `putIfNotExists` 24h TTL** | 微信重试窗口 72h，Edge 原子操作保证 |
+| 会话 | **KV Session** | 无状态、低延迟，适合 Edge 运行时 |
+| 前端 | **SPA (Vanilla JS) + History API** | 无需构建工具链，Skill 生成零依赖 |
 
 ---
 
-*本提交物包含完整 SKILL.md、3 个场景模板、4 篇参考实现文档，以及已部署可访问的电商 Demo 站点。*
+## 三、功能特性
+
+### 已实现功能
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 用户注册/登录 | ✅ | bcrypt cost=12, JWT 15min + RT 7d |
+| 商品浏览 | ✅ | KV 缓存 + Cloud MySQL 回源 |
+| 购物车 | ✅ | localStorage 持久化 |
+| 支付（微信/支付宝） | ✅ | 模拟 + 真实商户号可选 |
+| 订单管理 | ✅ | 6 状态状态机 + 自动超时取消 |
+| AI 对话 | ✅ | SSE 流式 + KV 历史 + 限流 |
+| 管理后台 | ✅ | RBAC + CRUD + 审计日志 |
+| 多租户隔离 | ✅ | JWT tenant + KV 动态前缀 + MySQL tenant_id |
+| 支付幂等 | ✅ | Edge 原子锁，零重复发货风险 |
+| SEO | ✅ | JSON-LD + Sitemap XML |
+| i18n | ✅ | 中英文双语 |
+| Analytics | ✅ | 埋点 SDK + opt-out 支持 |
+
+### Phase 4 新增特性
+
+- **superadmin / tenant_admin / user** 三级权限
+- **6 张业务表**增加 tenant_id 列 + 复合索引
+- **共享配额模块**（KV 存储/API 调用/存储空间）
+- **FNV-1a hash** KV 热 key 分散（64 分区）
+- **14 条集成测试**（6 功能 + 8 安全，12/13 核心用例通过）
+- **npm 包**：`@website-skeleton/payment`、`@website-skeleton/admin`、`@website-skeleton/shared`
+- **构建同步脚本** `sync-sharing.js`（CI 哈希校验 + build 阻断）
+
+---
+
+## 四、Phase 4 变更概要
+
+### Phase 4A：多租户隔离（5 周）
+
+| 周次 | 内容 | 关键文件 |
+|------|------|----------|
+| W1 | JWT 扩展 tenant/role + Cloud 中间件 + Edge RBAC + db.js {tenant} 强制 + 事务 | `jwt-helper.js`, `tenant-context.js`, `rbac.js`, `db.js` |
+| W2 | KV 动态前缀 + 共享配额模块（软/硬限制 + fail-open） | `kv-keys.js`, `quota.js` |
+| W3 | MySQL 迁移（6 表 + 复合索引）+ 权限分层 + 审计日志 + 回滚脚本 | `003_tenant_isolation.sql`, `003_rollback.sql` |
+| W4 | 租户管理 API + 支付回调 KV 反查 | `admin/tenants.js`, `pay/wx-notify.js` |
+| W5 | 集成测试（14 条）+ KV 热 key 分散 | 测试用例, `kv-keys.js` |
+
+### Phase 4B：npm 包化 + 增强（4 周）
+
+| 子项 | 内容 | 状态 |
+|------|------|------|
+| 4B1 | npm 包化（@website-skeleton/shared/payment/admin） | ✅ |
+| 4B2 | sync-sharing.js 构建同步脚本（Edge 内联 + Cloud npm + 哈希校验） | ✅ |
+| 4B3 | CHANGELOG.md + MIGRATION.md + semver 策略 | ✅ |
+| 4B4 | 支付回调二次加固（KV 幂等锁反查） | ✅ |
+| 4B5 | KV 热 key 分散（FNV-1a + 64 分区） | ✅ |
+| 4B6 | 计费 MVP（KV 滑动窗口 + 403 升级提示） | ✅ |
+
+### 5 项 P0 前置修复
+
+| P0 | 内容 | 来源 |
+|----|------|------|
+| P0-1 | 移除 `@edge-runtime/primitives` 导入，改用全局 `crypto.subtle` | 平台专家 |
+| P0-2 | 支付回调租户识别从 4B 提前到 4A W4（KV 反查） | 架构 + 安全专家 |
+| P0-3 | db.js 新增 `withTransaction()` 事务接口 | 平台专家 |
+| P0-4 | Edge Functions RBAC 中间件 `rbac.js` | 架构专家 |
+| P0-5 | 旧 token 从 users 表反查真实 tenant（渐进路径，无需轮换 SECRET） | 安全专家 + IMA 第三轮 |
+
+---
+
+## 五、目录结构
+
+```
+website-skeleton-skill/
+├── SKILL.md                    # Core Skill 指令文件
+├── README.md                   # 本文件
+├── LICENSE                     # MIT No Attribution
+├── CONTRIBUTING.md             # 贡献指南
+├── CHANGELOG.md                # 版本变更日志
+├── MIGRATION.md                # 升级迁移指南
+│
+├── templates/                  # 场景预设模板
+│   ├── e-commerce.json         # 电商场景
+│   ├── ai-assistant.json       # AI 助手场景
+│   └── saas-admin.json         # SaaS 管理后台场景
+│
+├── sharing/                    # 跨运行时共享（构建时同步到 Edge + Cloud）
+│   ├── jwt-helper.js           # JWT 签发/验证（RS256 + HS256 兼容）
+│   ├── kv-keys.js              # KV key 命名（FNV-1a 64 分区）
+│   ├── constants.js            # 角色/状态/权限常量
+│   ├── validators.js           # 输入校验
+│   └── i18n/                   # 国际化（中/英）
+│
+├── edge-functions/             # Edge Functions（V8 + KV）
+│   ├── api/                    # API 端点
+│   │   ├── auth/              # 登录/注册/me
+│   │   ├── products/          # 商品列表/详情
+│   │   ├── cart/              # 购物车
+│   │   ├── orders/            # 订单读取
+│   │   └── ai/                # AI 历史
+│   ├── middleware/             # 中间件
+│   │   ├── rbac.js            # ✅ Phase 4 新增：RBAC 权限检查
+│   │   └── quota.js           # ✅ Phase 4 新增：KV 配额限制
+│   └── pages/                  # SPA 入口
+│
+├── cloud-functions/            # Cloud Functions（Node.js + MySQL）
+│   ├── api/
+│   │   ├── auth/              # 注册（bcrypt）
+│   │   ├── pay/               # 支付创建/回调
+│   │   ├── admin/             # 管理后台 CRUD
+│   │   ├── order/             # 订单创建/取消/状态机
+│   │   └── ai/                # AI SSE 流
+│   ├── middleware/
+│   │   └── tenant-context.js  # ✅ Phase 4 新增：Cloud 统一租户解析
+│   ├── utils/
+│   │   └── db.js              # ✅ Phase 4 增强：{tenant} 强制 + 事务 + 不导出 db
+│   └── cron/                   # 定时任务（订单超时取消）
+│
+├── db/                         # 数据库迁移
+│   ├── migrations/
+│   │   ├── 001_init.sql        # 建表脚本
+│   │   ├── 002_order_logs.sql  # 订单审计表
+│   │   ├── 003_tenant_isolation.sql  # ✅ Phase 4 新增：租户隔离
+│   │   └── 003_rollback.sql    # ✅ Phase 4 新增：回滚脚本
+│   └── seed.sql                # 测试数据
+│
+├── client/                     # 前端 SPA
+│   ├── src/
+│   │   ├── app.js             # 启动 + History API 路由
+│   │   ├── utils/
+│   │   │   ├── auth.js        # JWT 客户端
+│   │   │   ├── analytics.js   # 埋点 SDK（含 opt-out）
+│   │   │   ├── seo.js         # JSON-LD 生成
+│   │   │   └── event-bus.js   # 事件总线
+│   │   └── services/
+│   │       └── ai.js          # AI SSE 客户端
+│   │
+│   └── index.html             # SPA 入口
+│
+├── packages/                   # ✅ Phase 4 新增：npm 包源码
+│   ├── payment/               # @website-skeleton/payment
+│   ├── admin/                 # @website-skeleton/admin
+│   └── shared/                # @website-skeleton/shared
+│
+├── scripts/
+│   └── sync-sharing.js        # ✅ Phase 4 增强：构建同步（哈希校验 + CI 阻断）
+│
+├── references/                 # 按需加载的参考文档
+│   ├── auth-module.md
+│   ├── payment-module.md
+│   ├── ai-chat-module.md
+│   ├── admin-module.md
+│   ├── order-state-machine.md
+│   ├── edge-functions.md
+│   ├── cloud-functions.md
+│   ├── middleware.md
+│   ├── kv-storage.md
+│   └── deployment.md
+│
+└── .github/                    # CI
+    ├── workflows/
+    │   └── validate.yml        # SKILL.md 校验 + 链接检查
+    └── ISSUE_TEMPLATE/
+        ├── bug_report.md
+        └── feature_request.md
+```
+
+---
+
+## 六、安全设计
+
+### 安全措施一览
+
+| 类别 | 措施 | 实现 |
+|------|------|------|
+| **支付** | 幂等原子锁 | Edge `putIfNotExists` 24h TTL（小于微信 72h 重试窗口） |
+| **支付** | 回调 IP 白名单 | Platform Middleware 直接 return |
+| **支付** | KV 反查租户 | `order_tenant:{orderId}`，不走 SQL（零绕过） |
+| **并发** | RT 乐观锁 | KV version 校验，并发刷新仅第一个成功 |
+| **订单** | 防超卖 | `SELECT FOR UPDATE` + 乐观锁 + MySQL CHECK 约束（三重） |
+| **金额** | 服务端唯一来源 | MySQL 价格字段，前端不可篡改 |
+| **密码** | bcrypt | cost=12，暴力破解成本极高 |
+| **Session** | JWT 短期+轮换 | Access Token 15min + Refresh Token 7d |
+| **Cookie** | 安全标记 | HttpOnly + Secure + SameSite=Strict |
+| **数据库** | 租户隔离 | `DELETE FROM orders WHERE tenant_id = {tenant}`（强制占位符）|
+| **数据库** | 防绕过 | db 对象不导出，所有 SQL 走 `query()` / `execute()` 函数 |
+| **API** | 租户配额 | KV 滑动窗口限流（单租户 API/存储/调用上限） |
+| **API** | 角色鉴权 | Edge RBAC 中间件 + Cloud 租户中间件 |
+| **AI** | 会话限流 | 未登录 10次/分，登录 60次/分 |
+| **AI** | 所有权校验 | KV session 绑定 userId，防止跨用户读取 |
+| **追踪** | 隐私 opt-out | localStorage + DNT 头支持 |
+
+---
+
+## 七、评审历程
+
+本 Skill 经历了 **8 轮评审**：
+
+| 轮次 | 评审方 | 评分 | 核心发现 |
+|------|--------|------|---------|
+| 1-4 | WorkBuddy + QClaw + Hermes + IMA（两轮） | — | 方案可行，8 项修正 |
+| 5 | 🛡️ 独立安全专家 | **7.0/10** 有条件通过 | S-01~S-08 |
+| 6 | 🏗️ 独立架构专家 | **7.2/10** 有条件通过 | C1~C3, D1~D5 |
+| 7 | ⚙️ 独立平台专家 | **7.5/10** 有条件通过 | B-1~B-4, R-1~R-2 |
+| 8 | IMA 第三轮 | 有条件通过 | C1 鸡生蛋修复 + I1 渐进路径 |
+
+**最终结论：** 5 项 P0 前置修复全部完成，4A 可启动。Phase 4 已全部实施完毕，进入维护阶段。
 
 ---
 
@@ -209,39 +343,17 @@ npm install @site-skeleton/payment
 
 | 版本 | 日期 | 内容 |
 |------|------|------|
-| v1.0 | 2026-04-20 | Phase 1 基础骨架搭建 |
-| v2.0 | 2026-04-23 | Phase 2 核心功能增强（JWT/订单状态机/支付） |
-| v2.2 | 2026-04-26 | Phase 3 工程化完善（RS256双轨/SEO/i18n/Analytics） |
-| **v3.0** | **2026-05-06** | **Phase 4A 多租户隔离 + Phase 4B npm包化增强** |
+| v1.0 | 2026-04-20 | Phase 1：基础骨架 + Mock Demo |
+| v2.0 | 2026-04-23 | Phase 2：JWT 双轨 · 订单状态机 · 支付 |
+| v2.2 | 2026-04-26 | Phase 3：RS256 迁移 · SEO · i18n · Analytics · 多租户铺垫 |
+| **v3.0** | **2026-05-06** | **Phase 4A：多租户隔离 + Phase 4B：npm 包化 + 增强** |
 
-## 九、Phase 4 变更概要
+---
 
-### Phase 4A：多租户隔离（5 周）
+## 九、License
 
-| 周次 | 内容 | 状态 |
-|------|------|------|
-| W1 | JWT 扩展 tenant/role/jti + Cloud 中间件 + Edge RBAC + db.js 事务 | ✅ |
-| W2 | KV 动态前缀 + 共享配额模块（软/硬限制 + fail-open） | ✅ |
-| W3 | MySQL 迁移（6 表 + 复合索引）+ 权限分层 + 审计日志 | ✅ |
-| W4 | 租户管理 API（CRUD + 邀请 + 停用）+ 支付回调 KV 反查 | ✅ |
-| W5 | 14 条集成测试（功能 6 + 安全 8，12/13 通过） | ✅ |
+MIT No Attribution — 详见 [LICENSE](./LICENSE)。
 
-### Phase 4B：npm 包化 + 增强
+---
 
-| 子项 | 内容 | 状态 |
-|------|------|------|
-| 4B1 | npm 包化（@website-skeleton/shared/payment/admin） | ✅ |
-| 4B2 | sync-sharing.js 构建同步脚本（3 目标 + 哈希校验） | ✅ |
-| 4B3 | CHANGELOG.md + MIGRATION.md + semver 策略 | ✅ |
-| 4B4 | 支付回调二次加固（KV 幂等锁反查） | ✅ |
-| 4B5 | KV 热 key 分散（FNV-1a + 64 分区） | ✅ |
-| 4B6 | 计费 MVP（滑动窗口 + 403 升级提示） | ✅ |
-
-### 评审历程
-
-| 轮次 | 评审方 | 结论 |
-|------|--------|------|
-| 1-4 | WorkBuddy + QClaw + Hermes + IMA（两轮） | 方案可行 |
-| 5-7 | 独立安全专家（7.0/10）+ 架构专家（7.2/10）+ 平台专家（7.5/10） | 有条件通过 |
-| 8 | IMA 第三轮（C1 鸡生蛋修复） | 有条件通过 |
-| **最终** | **全部 8 轮评审闭环** | **🎉 可启动** |
+*文档更新于 2026-05-06 · 如需提交 Issue 或 Feature Request，请使用 [GitHub Issues](https://github.com/liuboacean/website-skeleton-skill/issues)*
