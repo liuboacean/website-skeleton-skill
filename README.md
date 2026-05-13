@@ -4,14 +4,14 @@
   <img src="https://img.shields.io/badge/license-MIT_No_Attribution-green?style=flat-square" alt="license">
   <img src="https://img.shields.io/badge/status-stable-brightgreen?style=flat-square" alt="status">
   <img src="https://img.shields.io/badge/Phase_4_多租户_SaaS-%E2%9C%85-success?style=flat-square" alt="Phase 4">
-  <a href="https://website-skeleton-demo-8mv8fitk.edgeone.cool?eo_token=b271e0e01fed05761a626dc9f7e6034d&eo_time=1778654909"><img src="https://img.shields.io/badge/demo-live-purple?style=flat-square" alt="Demo"></a>
+  <a href="https://website-skeleton-demo-8mv8fitk.edgeone.cool?eo_token=c822b8b7682d9c01709793bea5559f13&eo_time=1778655201"><img src="https://img.shields.io/badge/demo-live-purple?style=flat-square" alt="Demo"></a>
 </p>
 
 # Website Skeleton Skill
 
 > **One sentence to build a full-stack website.** Generate auth, payments, AI chat, and admin panel — deploy to EdgeOne Pages.
 
-[English](#english) · [中文](#chinese) · [Demo](https://website-skeleton-demo-8mv8fitk.edgeone.cool?eo_token=b271e0e01fed05761a626dc9f7e6034d&eo_time=1778654909)
+[English](#english) · [中文](#chinese) · [Demo](https://website-skeleton-demo-8mv8fitk.edgeone.cool?eo_token=c822b8b7682d9c01709793bea5559f13&eo_time=1778655201)
 
 ---
 
@@ -33,7 +33,7 @@ edgeone pages deploy -n my-site
 
 ### Demo
 
-https://website-skeleton-demo-8mv8fitk.edgeone.cool?eo_token=b271e0e01fed05761a626dc9f7e6034d&eo_time=1778654909
+https://website-skeleton-demo-8mv8fitk.edgeone.cool?eo_token=c822b8b7682d9c01709793bea5559f13&eo_time=1778655201
 
 
 ---
