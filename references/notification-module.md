@@ -110,9 +110,9 @@ export async function sendEmail(env, { to, subject, html }) {
 
 **环境变量**：
 ```
-WX_APPID=wx1234567890
-WX_TEMPLATE_ID_ORDER=xxxxx
-WX_TEMPLATE_ID_SHIP=xxxxx
+WX_APPID=wx_your_appid_here
+WX_TEMPLATE_ID_ORDER=your_template_id
+WX_TEMPLATE_ID_SHIP=your_template_id
 ```
 
 **适配器实现**：
