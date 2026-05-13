@@ -30,12 +30,28 @@ export async function onRequest(request, env) {
   const body = await request.text();
 
   // ================================================================
+  // GATE 0: 内容格式校验 — 仅接受 XML
+  // 非 XML 请求（如 JSON 伪造回调）直接返回 404
+  // ================================================================
+  const contentType = request.headers.get('Content-Type') || '';
+  if (!contentType.includes('xml') && !body.trim().startsWith('<')) {
+    console.warn(`[WechatNotify] Non-XML content rejected: ${contentType}`);
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ================================================================
   // GATE 1: 解析微信回调 XML
   // ================================================================
   const parsed = parseWechatXML(body);
   if (!parsed || !parsed.out_trade_no) {
     console.warn('[WechatNotify] Invalid callback XML');
-    return failResponse('PARSE_ERROR', 'Invalid callback data');
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   const {
