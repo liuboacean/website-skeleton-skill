@@ -20,7 +20,7 @@
     "i18n": false
   },
   "dependencies": {
-    "npm": ["bcryptjs", "jsonwebtoken", "mysql2"],
+    "npm": ["bcryptjs", "jsonwebtoken"],
     "edgeone": {
       "kv": true,
       "cloudFunctions": true

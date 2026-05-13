@@ -43,7 +43,8 @@ JWT_PUBLIC_KEY=<公钥内容，换行替换为\n>
 JWT_SECRET=<HS256密钥，30天兼容用>
 
 # === 数据库 ===
-DATABASE_URL=mysql://user:password@host:3306/dbname
+# D1 数据库由 EdgeOne Pages 自动注入 env.DB，无需手动配置连接字符串
+# 执行迁移：edgeone d1 execute <db-name> --file=db/migrations/001_init.sql
 
 # === 微信支付 ===
 WX_APPID=wx...
@@ -69,10 +70,10 @@ SITE_URL=https://your-site.edgeone.cool
 
 ```bash
 # 1. 执行初始化迁移
-mysql -h host -u user -p dbname < db/migrations/001_init.sql
+edgeone d1 execute my-database --file=db/migrations/001_init.sql
 
 # 2. 执行订单日志迁移
-mysql -h host -u user -p dbname < db/migrations/002_order_logs.sql
+edgeone d1 execute my-database --file=db/migrations/002_order_logs.sql
 ```
 
 ### 1.5 部署
@@ -215,7 +216,7 @@ npm run dev
 JWT_PRIVATE_KEY="$(cat keys/private.pem | tr '\n' ' ')"
 JWT_PUBLIC_KEY="$(cat keys/public.pem | tr '\n' ' ')"
 JWT_SECRET=local-dev-secret
-DATABASE_URL=mysql://root:password@localhost:3306/geek_mall
+# D1 数据库绑定由 EdgeOne Pages 平台自动注入
 EDGE_BASE=http://localhost:8787
 ```
 

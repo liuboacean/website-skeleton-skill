@@ -19,7 +19,7 @@
     "i18n": false
   },
   "dependencies": {
-    "npm": ["bcryptjs", "jsonwebtoken", "mysql2"],
+    "npm": ["bcryptjs", "jsonwebtoken"],
     "edgeone": {
       "kv": true,
       "cloudFunctions": true
@@ -71,7 +71,7 @@
     "JWT 15min AT + RT 7d 轮换",
     "Cookie HttpOnly + Secure + SameSite=Strict",
     "支付幂等 putIfNotExists",
-    "金额服务端 MySQL 读取",
+    "金额服务端 D1 读取",
     "AI 限流",
     "CSP Header",
     "订单状态机（6状态 + 权限矩阵 + 审计日志）"

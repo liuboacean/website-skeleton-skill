@@ -15,12 +15,12 @@
 ## 二、金额安全规则
 
 ```javascript
-// 核心原则：金额永远从服务端 MySQL 读取，前端只传 productId + qty
+// 核心原则：金额永远从服务端 D1 读取，前端只传 productId + qty
 
 // ❌ 危险：从前端接收金额
 { productId: "p001", qty: 1, price: 99.9 }  // 前端可控！
 
-// ✅ 安全：Cloud Function 查 MySQL 获取价格
+// ✅ 安全：Cloud Function 查 D1 获取价格
 const [rows] = await pool.query(
   'SELECT price FROM products WHERE id = ? AND status = "active"',
   [productId]

@@ -1,14 +1,14 @@
 # Cloud Functions 参考文档
 
 > **版本：** v2.2 · **Phase：** Layer 0（Core）
-> **职责：** 含密钥操作、MySQL 事务、支付 SDK、AI SSE、bcrypt 哈希
+> **职责：** 含密钥操作、D1 事务、支付 SDK、AI SSE、bcrypt 哈希
 
 ---
 
 ## 一、Cloud Functions 概述
 
 Cloud Functions 运行在 **Node.js 环境**，可以：
-- 访问 MySQL（主数据库）
+- 访问 D1（主数据库）
 - 使用密钥（bcrypt、支付 SDK）
 - 执行长时间任务（SSE 流）
 - 发起外部 HTTP 请求
@@ -34,7 +34,7 @@ cloud-functions/
 │   └── ai/
 │       └── chat-stream.js       # SSE 流式响应
 ├── utils/
-│   ├── db.js                    # MySQL 连接池
+│   ├── db.js                    # D1 连接池
 │   ├── payment-sdk.js           # 微信/支付宝 SDK 封装
 │   ├── admin-guard.js          # 权限校验
 │   └── notification-hooks.js   # 通知钩子
@@ -78,40 +78,32 @@ export async function onRequest(request, env) {
 
 ---
 
-## 三、MySQL 连接池
+## 三、D1 数据库工具
 
 ```javascript
-// cloud-functions/utils/db.js
+// cloud-functions/utils/db.js — D1 多租户数据库工具
+import { query, queryOne, execute, withTransaction } from '../utils/db.js';
 
-import { Pool } from 'mysql2/promise';
+// 单语句查询（自动注入 {tenant}）
+const orders = query(env,
+  'SELECT * FROM orders WHERE tenant_id = {tenant} AND status = ?',
+  ['PENDING'], tenantId
+);
 
-let pool = null;
-
-export async function getPool(connectionString) {
-  if (!pool) {
-    pool = new Pool({
-      connectionString,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 0
-    });
-  }
-  return pool;
-}
-
-// Cloud Function 中使用
-export async function onRequest(request, env) {
-  const pool = await getPool(env.DATABASE_URL);
-  try {
-    const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
-    return new Response(JSON.stringify(rows[0]));
-  } finally {
-    // Cloud Functions 不需要手动关闭池
-  }
-}
+// 事务操作
+withTransaction(env, tenantId, (ctx) => {
+  const product = ctx.queryOne(
+    'SELECT * FROM products WHERE id = {tenant} AND id = ? FOR UPDATE',
+    [productId]
+  );
+  ctx.execute(
+    'UPDATE products SET stock = stock - 1 WHERE id = {tenant} AND id = ?',
+    [productId]
+  );
+});
 ```
+
+> ⚠️ D1 数据库通过 `env.DB` 绑定自动注入，无需手动管理连接池。
 
 ### 事务示例
 
@@ -278,7 +270,7 @@ export async function onRequest(request, env) {
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `DATABASE_URL` | ✅ | MySQL 连接串 |
+| `DATABASE_URL` | ✅ | D1 连接串 |
 | `WX_APPID` | ✅（电商） | 微信 AppID |
 | `WX_MCHID` | ✅（电商） | 微信商户号 |
 | `WX_API_KEY` | ✅（电商） | 微信 APIv3 密钥 |

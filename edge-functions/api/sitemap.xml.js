@@ -24,7 +24,7 @@ export async function onRequest(context) {
     if (cached) {
       productUrls = JSON.parse(cached);
     } else {
-      // 从 MySQL 读取（通过 Cloud Function 回源）
+      // 从 D1 读取（通过 Cloud Function 回源）
       // 实际实现中可通过内部 HTTP 调用获取
       productUrls = [];
     }

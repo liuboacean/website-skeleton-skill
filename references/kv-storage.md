@@ -35,10 +35,10 @@ export const kvKey = {
 |------|------|------|
 | 单商品读取 | KV 缓存 | kv.get 极快 |
 | 商品列表（首页，无筛选） | KV 第1页缓存 | 首页访问量最大 |
-| 分类+价格筛选 | Cloud MySQL | KV 不支持复合条件 |
-| 关键词搜索 | Cloud MySQL FULLTEXT | KV 不支持 LIKE |
+| 分类+价格筛选 | Cloud D1 | KV 不支持复合条件 |
+| 关键词搜索 | Cloud D1 | KV 不支持 LIKE |
 | AI 会话历史 | KV list | kv.list('ai:${userId}:') |
-| 订单统计（多条件聚合） | Cloud MySQL | KV 不支持聚合 |
+| 订单统计（多条件聚合） | Cloud D1 | KV 不支持聚合 |
 
 ## 四、索引 KV 模式
 

@@ -27,25 +27,14 @@ edgeone login --site china
 edgeone pages deploy -n my-site
 ```
 
-Follow the interactive prompts to choose your template and configure keys.
 
 ### Features
 
-- **Dual runtime**: Edge Functions (KV, fast reads) + Cloud Functions (MySQL, secure writes)
-- **Phase 4 — Multi-tenant SaaS**: JWT tenant isolation, KV dynamic prefix, MySQL tenant_id, RBAC (superadmin/tenant_admin/user)
-- **Phase 4 — npm packages**: `@website-skeleton/payment`, `@website-skeleton/admin`, `@website-skeleton/shared`
-- **Payment idempotent lock**: Edge `putIfNotExists` with 24h TTL
-- **Concurrency safety**: KV version optimistic lock for refresh token rotation
-- **3 templates**: E-commerce / AI Assistant / SaaS Admin
-- **8 rounds of expert review**: Security 7.0/10, Architecture 7.2/10, Platform 7.5/10
 
 ### Demo
 
 https://geek-mall-demo-4qaxvmeh.edgeone.cool
 
-### License
-
-MIT No Attribution — see [LICENSE](./LICENSE)
 
 ---
 
@@ -115,7 +104,7 @@ edgeone pages deploy -n my-site
 └──────────────────────────────────────────────────────────────────┘
                               ↓（写操作/密钥操作）
 ┌──────────────────────────────────────────────────────────────────┐
-│  Cloud Functions (Node.js + MySQL)                               │
+│  Cloud Functions (Node.js + D1)                               │
 │  bcrypt · 支付创建/回调 · 订单状态机 · Admin CRUD · AI SSE 流     │
 │  密钥操作、复杂事务、SELECT FOR UPDATE                            │
 └──────────────────────────────────────────────────────────────────┘
@@ -125,7 +114,7 @@ edgeone pages deploy -n my-site
 
 | 决策 | 选择 | 理由 |
 |------|------|------|
-| 数据库 | **MySQL 8.0.12+** | EdgeOne Pages Cloud Functions 原生支持，`SELECT FOR UPDATE` 事务需求 |
+| 数据库 | **D1 (EdgeOne Pages 原生)** | EdgeOne Pages 原生支持，`SELECT FOR UPDATE` 事务需求 |
 | 认证 | **JWT RS256 + 30天 HS256 兼容窗口** | 安全性（RS256）与迁移平滑兼顾 |
 | 支付幂等 | **Edge `putIfNotExists` 24h TTL** | 微信重试窗口 72h，Edge 原子操作保证 |
 | 会话 | **KV Session** | 无状态、低延迟，适合 Edge 运行时 |
@@ -137,30 +126,6 @@ edgeone pages deploy -n my-site
 
 ### 已实现功能
 
-| 功能 | 状态 | 说明 |
-|------|------|------|
-| 用户注册/登录 | ✅ | bcrypt cost=12, JWT 15min + RT 7d |
-| 商品浏览 | ✅ | KV 缓存 + Cloud MySQL 回源 |
-| 购物车 | ✅ | localStorage 持久化 |
-| 支付（微信/支付宝） | ✅ | 模拟 + 真实商户号可选 |
-| 订单管理 | ✅ | 6 状态状态机 + 自动超时取消 |
-| AI 对话 | ✅ | SSE 流式 + KV 历史 + 限流 |
-| 管理后台 | ✅ | RBAC + CRUD + 审计日志 |
-| 多租户隔离 | ✅ | JWT tenant + KV 动态前缀 + MySQL tenant_id |
-| 支付幂等 | ✅ | Edge 原子锁，零重复发货风险 |
-| SEO | ✅ | JSON-LD + Sitemap XML |
-| i18n | ✅ | 中英文双语 |
-| Analytics | ✅ | 埋点 SDK + opt-out 支持 |
-
-### Phase 4 新增特性
-
-- **superadmin / tenant_admin / user** 三级权限
-- **6 张业务表**增加 tenant_id 列 + 复合索引
-- **共享配额模块**（KV 存储/API 调用/存储空间）
-- **FNV-1a hash** KV 热 key 分散（64 分区）
-- **14 条集成测试**（6 功能 + 8 安全，12/13 核心用例通过）
-- **npm 包**：`@website-skeleton/payment`、`@website-skeleton/admin`、`@website-skeleton/shared`
-- **构建同步脚本** `sync-sharing.js`（CI 哈希校验 + build 阻断）
 
 ---
 
@@ -172,20 +137,12 @@ edgeone pages deploy -n my-site
 |------|------|----------|
 | W1 | JWT 扩展 tenant/role + Cloud 中间件 + Edge RBAC + db.js {tenant} 强制 + 事务 | `jwt-helper.js`, `tenant-context.js`, `rbac.js`, `db.js` |
 | W2 | KV 动态前缀 + 共享配额模块（软/硬限制 + fail-open） | `kv-keys.js`, `quota.js` |
-| W3 | MySQL 迁移（6 表 + 复合索引）+ 权限分层 + 审计日志 + 回滚脚本 | `003_tenant_isolation.sql`, `003_rollback.sql` |
+| W3 | D1 迁移（6 表 + 复合索引）+ 权限分层 + 审计日志 + 回滚脚本 | `003_tenant_isolation.sql`, `003_rollback.sql` |
 | W4 | 租户管理 API + 支付回调 KV 反查 | `admin/tenants.js`, `pay/wx-notify.js` |
 | W5 | 集成测试（14 条）+ KV 热 key 分散 | 测试用例, `kv-keys.js` |
 
 ### Phase 4B：npm 包化 + 增强（4 周）
 
-| 子项 | 内容 | 状态 |
-|------|------|------|
-| 4B1 | npm 包化（@website-skeleton/shared/payment/admin） | ✅ |
-| 4B2 | sync-sharing.js 构建同步脚本（Edge 内联 + Cloud npm + 哈希校验） | ✅ |
-| 4B3 | CHANGELOG.md + MIGRATION.md + semver 策略 | ✅ |
-| 4B4 | 支付回调二次加固（KV 幂等锁反查） | ✅ |
-| 4B5 | KV 热 key 分散（FNV-1a + 64 分区） | ✅ |
-| 4B6 | 计费 MVP（KV 滑动窗口 + 403 升级提示） | ✅ |
 
 ### 5 项 P0 前置修复
 
@@ -234,7 +191,7 @@ website-skeleton-skill/
 │   │   └── quota.js           # ✅ Phase 4 新增：KV 配额限制
 │   └── pages/                  # SPA 入口
 │
-├── cloud-functions/            # Cloud Functions（Node.js + MySQL）
+├── cloud-functions/            # Cloud Functions（Node.js + D1）
 │   ├── api/
 │   │   ├── auth/              # 注册（bcrypt）
 │   │   ├── pay/               # 支付创建/回调
@@ -309,7 +266,7 @@ website-skeleton-skill/
 | **支付** | KV 反查租户 | `order_tenant:{orderId}`，不走 SQL（零绕过） |
 | **并发** | RT 乐观锁 | KV version 校验，并发刷新仅第一个成功 |
 | **订单** | 防超卖 | `SELECT FOR UPDATE` + 乐观锁 + MySQL CHECK 约束（三重） |
-| **金额** | 服务端唯一来源 | MySQL 价格字段，前端不可篡改 |
+| **金额** | 服务端唯一来源 | D1 价格字段，前端不可篡改 |
 | **密码** | bcrypt | cost=12，暴力破解成本极高 |
 | **Session** | JWT 短期+轮换 | Access Token 15min + Refresh Token 7d |
 | **Cookie** | 安全标记 | HttpOnly + Secure + SameSite=Strict |
@@ -348,7 +305,6 @@ website-skeleton-skill/
 | v2.2 | 2026-04-26 | Phase 3：RS256 迁移 · SEO · i18n · Analytics · 多租户铺垫 |
 | **v3.0** | **2026-05-06** | **Phase 4A：多租户隔离 + Phase 4B：npm 包化 + 增强** |
 
----
 
 ## 九、License
 

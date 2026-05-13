@@ -120,7 +120,7 @@ export async function onRequest(context) {
     });
   }
 
-  // 缓存未命中 → 回源 Cloud MySQL（通过内部 HTTP）
+  // 缓存未命中 → 回源 Cloud D1（通过 db.js）
   const products = await fetch(`${env.EDGE_BASE}/internal/products`, {
     headers: { 'X-Internal-Key': env.INTERNAL_KEY }
   }).then(r => r.json());
