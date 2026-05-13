@@ -1122,7 +1122,7 @@ export async function onRequest(request, env) {
 
 ## 十七、功能验证清单（Phase 2 更新）
 
-**Demo 站点：** https://geek-mall-demo-4qaxvmeh.edgeone.cool（需有效期内的 EdgeOne Pages 访问 Token）
+**Demo 站点：** https://website-skeleton-demo-8mv8fitk.edgeone.cool（需有效期内的 EdgeOne Pages 访问 Token）
 
 | # | 功能 | 验证方法 | 状态 |
 |---|------|---------|------|
