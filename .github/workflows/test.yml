@@ -1,0 +1,72 @@
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # 语法校验：检查所有 .js 文件能否被 Node 解析
+      - name: Syntax check (Edge Functions)
+        run: |
+          for f in edge-functions/**/*.js; do
+            node --check "$f" || exit 1
+          done
+
+      - name: Syntax check (Cloud Functions)
+        run: |
+          for f in cloud-functions/**/*.js; do
+            node --check "$f" || exit 1
+          done
+
+      - name: Syntax check (Shared)
+        run: |
+          for f in sharing/*.js; do
+            node --check "$f" || exit 1
+          done
+
+      # 构建校验：确保 sync + build 可执行
+      - name: Build check
+        run: npm run build
+
+      # 安全审计
+      - name: Security audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run integration tests
+        run: node tests/integration/phase4a.test.js
+        env:
+          BASE_URL: ${{ secrets.TEST_BASE_URL || 'http://localhost:8787' }}
+          TOKEN_A: ${{ secrets.TEST_TOKEN_A || '' }}
+          TOKEN_B: ${{ secrets.TEST_TOKEN_B || '' }}
+          SUPERADMIN_TOKEN: ${{ secrets.TEST_SUPERADMIN_TOKEN || '' }}
+        continue-on-error: true

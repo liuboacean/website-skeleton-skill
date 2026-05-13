@@ -1,0 +1,32 @@
+name: Deploy to EdgeOne Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # 安装 EdgeOne CLI
+      - name: Install EdgeOne CLI
+        run: npm install -g edgeone@latest
+
+      # 登录（使用 Secrets 中的凭证）
+      - name: Login to EdgeOne
+        run: edgeone login --token ${{ secrets.EDGEONE_API_TOKEN }}
+
+      # 部署
+      - name: Deploy
+        run: edgeone pages deploy --project ${{ secrets.EDGEONE_PROJECT_NAME || 'website-skeleton-demo' }}
