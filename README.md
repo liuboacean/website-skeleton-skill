@@ -265,7 +265,7 @@ website-skeleton-skill/
 | **支付** | 回调 IP 白名单 | Platform Middleware 直接 return |
 | **支付** | KV 反查租户 | `order_tenant:{orderId}`，不走 SQL（零绕过） |
 | **并发** | RT 乐观锁 | KV version 校验，并发刷新仅第一个成功 |
-| **订单** | 防超卖 | `SELECT FOR UPDATE` + 乐观锁 + MySQL CHECK 约束（三重） |
+| **订单** | 防超卖 | `SELECT FOR UPDATE` + 乐观锁 + D1 CHECK 约束（三重） |
 | **金额** | 服务端唯一来源 | D1 价格字段，前端不可篡改 |
 | **密码** | bcrypt | cost=12，暴力破解成本极高 |
 | **Session** | JWT 短期+轮换 | Access Token 15min + Refresh Token 7d |

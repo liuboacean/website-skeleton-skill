@@ -1359,7 +1359,7 @@ Phase 5（规划中）：npm 包化
 | KV Session | EdgeOne KV | 7 天 TTL | 自动过期 |
 | AI 聊天历史 | EdgeOne KV | 30 天 TTL | 可配置 |
 | 审计日志 | EdgeOne KV | 90 天 TTL | 可配置 |
-| 订单数据 | MySQL | 永久 | 业务必需 |
+| 订单数据 | D1 | 永久 | 业务必需 |
 
 ### 5. Cron 定时任务
 - 订单超时取消（PENDING 30 分钟 → CANCELLED）
