@@ -1,6 +1,55 @@
 ---
 name: 建站骨架 (EdgeOne Pages)
-description: 一句话说需求，AI 生成完整前后端网站并自动部署到 EdgeOne Pages。支持电商栈（Auth/购物车/支付）、AI 栈（SSE 流式对话）、管理后台。触发词：帮我建网站、建一个电商网站、做 AI 客服站、建管理后台、EdgeOne Pages 建站、搭建网站、做个网站、生成网站、建站、创建网站、我要建站、商城网站、下单支付网站、全栈网站、build a website、create a full-stack app、e-commerce website
+description: 一句话说需求，AI 生成完整前后端网站并自动部署到 EdgeOne Pages。支持电商栈（Auth/购物车/支付）、AI 栈（SSE 流式对话）、管理后台。
+version: "3.0"
+category: openclaw-imports
+tags:
+  - edgeone
+  - website
+  - ecommerce
+  - deploy
+triggers:
+  - 帮我建网站
+  - 建一个电商网站
+  - 做 AI 客服站
+  - 建管理后台
+  - EdgeOne Pages 建站
+  - 搭建网站
+  - 做个网站
+  - 生成网站
+  - 建站
+  - 创建网站
+  - 我要建站
+  - 商城网站
+  - 下单支付网站
+  - 全栈网站
+  - build a website
+  - create a full-stack app
+  - e-commerce website
+  - 建电商
+  - 网站骨架
+  - 部署网站
+env:
+  JWT_SECRET:
+    description: JWT 签名密钥（HS256），Edge + Cloud 共享
+    required: true
+    secret: true
+  AI_API_KEY:
+    description: AI 模型调用 API Key（仅 AI 栈需要）
+    required: false
+    secret: true
+  WX_APPID:
+    description: 微信支付 AppID（仅电商栈需要）
+    required: false
+    secret: true
+  WX_MCHID:
+    description: 微信支付商户号（仅电商栈需要）
+    required: false
+    secret: true
+  DATABASE_URL:
+    description: D1 数据库绑定
+    required: false
+    secret: true
 ---
 
 # 建站 Skill — EdgeOne Pages 全栈网站骨架
@@ -1328,6 +1377,25 @@ Phase 5（规划中）：npm 包化
 
 *Skill 版本演进由评审驱动，每 Phase 完成后更新版本号与文档。*
 
+
+## 用户确认检查点
+
+以下操作必须在执行前暂停，向用户说明并等待确认：
+
+| # | 操作 | 检查点说明 | 风险 |
+|---|------|-----------|------|
+| 1 | **edgeone pages deploy** | 显示待部署文件清单和变更概要，确认目标项目（测试/生产） | 高 |
+| 2 | **激活真实支付网关** | 切换到正式商户号前确认：签名验证已通过、测试环境已跑通全流程 | 高 |
+| 3 | **注入生产环境变量** | 确认所有密钥（JWT_SECRET / WX_API_KEY / DATABASE_URL）已正确配置 | 高 |
+| 4 | **执行数据库迁移** | 先备份现有数据、确认迁移脚本影响范围 | 高 |
+| 5 | **启用 Cron 定时任务** | 确认 PENDING 超时（30min）和自动完成（7天）阈值符合业务需求 | 中 |
+| 6 | **生成网站代码前** | 向用户展示选择的场景模板和模块组合，确认后再执行代码生成 | 中 |
+| 7 | **绑定自定义域名** | 确认 DNS 解析已配置、SSL 证书已签发、旧域名流量迁移方案 | 中 |
+| 8 | **回滚部署** | 确认回滚到哪个版本、是否会影响正在进行的交易 | 高 |
+| 9 | **开启多租户模式** | 确认 KV key 前缀迁移策略、租户隔离方案 | 中 |
+| 10 | **升级 RS256（从 HS256）** | 确认 30 天兼容窗口期内新旧 token 混跑测试通过 | 中 |
+
+> **规则**：LLM 遇到上表操作时，先向用户输出摘要说明，明确询问"是否继续？"，得到肯定答复后再执行。用户可随时跳过检查点。
 
 ---
 
